@@ -21,7 +21,17 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter VRC7_PATCH_CONFI
     input   wire            i_VRC7_EN,
 
     //timings
-    input   wire            i_CYCLE_21, i_CYCLE_D3_ZZ, i_CYCLE_D4_ZZ, i_HALF_SUBCYCLE
+    input   wire            i_CYCLE_12, i_CYCLE_21, i_CYCLE_D3_ZZ, i_CYCLE_D4_ZZ, i_HALF_SUBCYCLE,
+
+    //ROM outputs
+    output  reg             o_RHYTHM_KON,
+    output  reg     [5:0]   o_TL,
+    output  reg             o_DC, o_DM,
+    output  reg     [2:0]   o_FB,
+    output  reg             o_AM, o_PM, o_ETYP, o_KSR,
+    output  reg     [3:0]   o_MUL,
+    output  reg     [1:0]   o_KSL,
+    output  reg     [3:0]   o_AR, o_DR, o_SL, o_RR
 );
 
 
@@ -246,33 +256,149 @@ IKAOPLL_d9reg #(4) u_inst      (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n),
 //////  INSTRUMENT ROM
 ////
 
+//percussion process sequencer
+reg             cyc13;
+always @(posedge i_EMUCLK) if(!phi1ncen_n) cyc13 <= i_CYCLE_12;
 
-IKAOPLL_instrom #(INSTROM_STYLE) u_intsrom (
+wire            perc_proc_d = rhythm_reg[5] & cyc13;
+reg     [4:0]   perc_proc;
+always @(posedge i_EMUCLK) if(!phi1ncen_n) begin
+    perc_proc[0] <= perc_proc_d;
+    perc_proc[4:1] <= perc_proc[3:0];
+end
+
+//wires
+wire            am_rom, pm_rom, etyp_rom, ksr_rom;
+wire    [3:0]   mul_rom;
+wire    [1:0]   ksl_rom;
+wire    [3:0]   ar_rom;
+wire    [3:0]   dr_rom;
+wire    [3:0]   sl_rom;
+wire    [3:0]   rr_rom;
+wire    [5:0]   tl_rom;
+wire            dc_rom, dm_rom;
+wire            fb_rom;
+
+//ROM module
+IKAOPLL_instrom #(INSTROM_STYLE) u_instrom (
     //chip clock
     .i_EMUCLK                   (emuclk                     ),
     .i_phi1_PCEN_n              (phi1pcen_n                 ),
 
-    //1 = use the optional VRC7 enable register, 0 = use value from the off-chip
+    //1 = use the optional VRC7 enable register, 0 = use value from off-chip
     .i_VRC7_EN                  (VRC7_PATCH_CONFIG_MODE ? vrc7_en_reg : i_VRC7_EN),
 
     .i_INST_ADDR                (inst_reg                   ),
-    .i_BD0_SEL(), .i_BD1_SEL(), .i_SD_SEL(), .i_TT_SEL(), .i_TC_SEL(), .i_HH_SEL(),
+    .i_BD0_SEL(perc_proc_d), .i_HH_SEL(perc_proc[0]), .i_TT_SEL(perc_proc[1]), .i_BD1_SEL(perc_proc[2]), .i_SD_SEL(perc_proc[3]), .i_TC_SEL(perc_proc[4]), 
     .i_MnC_SEL(i_HALF_SUBCYCLE),
 
-    .o_TL_ROM(), .o_DC_ROM(), .o_DM_ROM(), .o_FB_ROM(),
-    .o_AM_ROM(), .o_PM_ROM(), .o_ETYP_ROM(), .o_KSR_ROM(),
-    .o_MUL_ROM(), .o_KSL_ROM(),
-    .o_AR_ROM(), .o_DR_ROM(), .o_SL_ROM(), .o_RR_ROM()
+    .o_TL_ROM(tl_rom), .o_DC_ROM(dc_rom), .o_DM_ROM(dm_rom), .o_FB_ROM(fb_rom),
+    .o_AM_ROM(am_rom), .o_PM_ROM(pm_rom), .o_ETYP_ROM(etyp_rom), .o_KSR_ROM(ksr_rom),
+    .o_MUL_ROM(mul_rom), .o_KSL_ROM(ksl_rom),
+    .o_AR_ROM(ar_rom), .o_DR_ROM(dr_rom), .o_SL_ROM(sl_rom), .o_RR_ROM(rr_rom)
 );
 
 
 
+///////////////////////////////////////////////////////////
+//////  RHYTHM KON SELECTOR
+////
+
+always @(*) begin
+    case({perc_proc_d, perc_proc[0], perc_proc[1], perc_proc[2], perc_proc[3], perc_proc[4]})
+        6'b100000: o_RHYTHM_KON = rhythm_reg[4];
+        6'b010000: o_RHYTHM_KON = rhythm_reg[0];
+        6'b001000: o_RHYTHM_KON = rhythm_reg[2];
+        6'b000100: o_RHYTHM_KON = rhythm_reg[4];
+        6'b000010: o_RHYTHM_KON = rhythm_reg[3];
+        6'b000001: o_RHYTHM_KON = rhythm_reg[1];
+        default:   o_RHYTHM_KON = 1'b0;
+    endcase
+end
 
 
 
+///////////////////////////////////////////////////////////
+//////  OUTPUT DATA SELECTOR
+////
 
+wire            cust_inst_sel = ~|{perc_proc_d, perc_proc[0], perc_proc[1], perc_proc[2], perc_proc[3], perc_proc[4]} & inst_reg == 4'h0;
 
+reg             half_subcycle_z, cust_inst_sel_z;
+always @(posedge i_EMUCLK) if(!phi1pcen_n) begin //positive!!!
+    half_subcycle_z <= i_HALF_SUBCYCLE;
+    cust_inst_sel_z <= cust_inst_sel;
+end
 
+//custom instrument parameter register(d1reg) output enables
+wire            reg_mod_oe = cust_inst_sel_z &  half_subcycle_z; //register-modulator OE
+wire            reg_car_oe = cust_inst_sel_z & ~half_subcycle_z; //register-carrier OE
+wire            fdbk_reg_oe = cust_inst_sel_z; //instrument register OE
+
+//channel instrument/volume register(d9reg) output latch enables, for percussion volume processing
+wire            vol_latch_oe = ~half_subcycle_z; //volume register outlatch OE
+reg             inst_latch_oe;
+always @(posedge i_EMUCLK) if(!phi1pcen_n) inst_latch_oe <= perc_proc[0] | perc_proc[1];
+
+//built-in instrument parameter ROM output enables
+wire            rom_general_oe = ~cust_inst_sel_z;
+wire            tl_rom_oe = ~|{inst_latch_oe, reg_mod_oe, vol_latch_oe};
+
+//percussion level latch
+reg     [3:0]   vol_reg_latch, inst_reg_latch;
+always @(posedge i_EMUCLK) if(!phi1pcen_n) vol_reg_latch <= vol_reg;
+always @(posedge i_EMUCLK) if(!phi1pcen_n) inst_reg_latch <= inst_reg;
+
+`ifdef IKAOPLL_DEFINE_IDLE_BUS_Z
+`define IB 1'bz
+`else
+`define IB 1'b0
+`endif
+
+//output selector
+always @(*) begin
+    //total level(bit complex)
+    case({tl_rom_oe, reg_mod_oe, vol_latch_oe, inst_latch_oe})
+        4'b1000: o_TL = tl_rom;
+        4'b0100: o_TL = tl_reg;
+        4'b0010: o_TL = {vol_reg_latch, 2'b00};
+        4'b0001: o_TL = {inst_reg_latch, 2'b00};
+        default: o_TL = {6{`IB}};
+    endcase
+
+    case({rom_general_oe, fdbk_reg_oe})
+        2'b10:   begin o_DC = dc_rom; o_DM = dm_rom; o_FB = fb_rom; end
+        2'b01:   begin o_DC = dc_reg; o_DM = dm_reg; o_FB = fb_reg; end
+        default: begin o_DC = `IB; o_DM = `IB; o_FB = {3{`IB}}; end
+    endcase
+
+    case({rom_general_oe, reg_mod_oe, reg_car_oe})
+        3'b100: begin
+            o_AM = am_rom; o_PM = pm_rom; o_ETYP = etyp_rom; o_KSR = ksr_rom;
+            o_MUL = mul_rom;
+            o_KSL = ksl_rom;
+            o_AR = ar_rom; o_DR = dr_rom; o_SL = sl_rom; o_RR = rr_rom;
+        end
+        3'b010: begin
+            o_AM = am_reg[0]; o_PM = pm_reg[0]; o_ETYP = etyp_reg[0]; o_KSR = ksr_reg[0];
+            o_MUL = mul_reg[0];
+            o_KSL = ksl_reg[0];
+            o_AR = ar_reg[0]; o_DR = dr_reg[0]; o_SL = sl_reg[0]; o_RR = rr_reg[0];
+        end
+        3'b001: begin
+            o_AM = am_reg[1]; o_PM = pm_reg[1]; o_ETYP = etyp_reg[1]; o_KSR = ksr_reg[1];
+            o_MUL = mul_reg[1];
+            o_KSL = ksl_reg[1];
+            o_AR = ar_reg[1]; o_DR = dr_reg[1]; o_SL = sl_reg[1]; o_RR = rr_reg[1];
+        end
+        default: begin
+            o_AM = `IB; o_PM = `IB; o_ETYP = `IB; o_KSR = `IB;
+            o_MUL = {4{`IB}};
+            o_KSL = {2{`IB}};
+            o_AR = {4{`IB}}; o_DR = {4{`IB}}; o_SL = {4{`IB}}; o_RR = {4{`IB}};
+        end
+    endcase
+end
 
 
 endmodule
@@ -379,7 +505,7 @@ module IKAOPLL_instrom #(parameter INSTROM_STYLE = 0) (
 
     input   wire            i_VRC7_EN,
     input   wire    [3:0]   i_INST_ADDR,
-    input   wire            i_BD0_SEL, i_BD1_SEL, i_SD_SEL, i_TT_SEL, i_TC_SEL, i_HH_SEL,
+    input   wire            i_BD0_SEL, i_HH_SEL, i_TT_SEL, i_BD1_SEL, i_SD_SEL, i_TC_SEL,
     input   wire            i_MnC_SEL, //1=MOD 0=CAR
 
     output  wire    [5:0]   o_TL_ROM,
@@ -396,12 +522,12 @@ module IKAOPLL_instrom #(parameter INSTROM_STYLE = 0) (
 //////  Address decoder
 ////
 
-wire            percussion_sel = |{i_BD0_SEL, i_BD1_SEL, i_SD_SEL, i_TT_SEL, i_TC_SEL, i_HH_SEL};
+wire            percussion_sel = |{i_BD0_SEL, i_HH_SEL, i_TT_SEL, i_BD1_SEL, i_SD_SEL, i_TC_SEL};
 reg     [5:0]   mem_addr;
 
 always @(*) begin
     if(percussion_sel) begin
-        case({i_BD0_SEL, i_BD1_SEL, i_SD_SEL, i_TT_SEL, i_TC_SEL, i_HH_SEL})
+        case({i_BD0_SEL, i_HH_SEL, i_TT_SEL, i_BD1_SEL, i_SD_SEL, i_TC_SEL})
             6'b100000: mem_addr = {i_VRC7_EN, 1'b1, 4'h0};
             6'b010000: mem_addr = {i_VRC7_EN, 1'b1, 4'h1};
             6'b001000: mem_addr = {i_VRC7_EN, 1'b1, 4'h2};
@@ -461,11 +587,11 @@ always @(posedge i_EMUCLK) if(!i_phi1_PCEN_n) begin
         6'h0F: mem_q <= 63'b001001_0_0_011_00_11_10_00_00010001_1000_11111110_00010100_01000001_00000011;
 
         6'h10: mem_q <= 63'b011000_0_1_111_00_00_00_00_00010000_0000_11010000_11110000_01100000_10100000; //bass drum 0
-        6'h11: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
-        6'h12: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
-        6'h13: mem_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
-        6'h14: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
-        6'h15: mem_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat     
+        6'h11: mem_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat     
+        6'h12: mem_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
+        6'h13: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
+        6'h14: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
+        6'h15: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
         6'h16: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000000_0000_00000000_00000000_00000000_00000000;
         6'h17: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000000_0000_00000000_00000000_00000000_00000000;
         6'h18: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000000_0000_00000000_00000000_00000000_00000000;
@@ -496,11 +622,11 @@ always @(posedge i_EMUCLK) if(!i_phi1_PCEN_n) begin
         6'h2F: mem_q <= 63'b001101_0_0_000_00_01_11_01_00010010_0000_11001101_00010101_01010000_01100110;
 
         6'h30: mem_q <= 63'b011000_0_1_111_00_00_00_00_00010000_0000_11010000_11110000_01100000_10100000; //bass drum 0
-        6'h31: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
-        6'h32: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
-        6'h33: mem_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
-        6'h34: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
-        6'h35: mem_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat     
+        6'h31: mem_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat     
+        6'h32: mem_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
+        6'h33: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
+        6'h34: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
+        6'h35: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
         6'h36: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000000_0000_00000000_00000000_00000000_00000000;
         6'h37: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000000_0000_00000000_00000000_00000000_00000000;
         6'h38: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000000_0000_00000000_00000000_00000000_00000000;
@@ -575,11 +701,11 @@ always @(posedge i_EMUCLK) if(!i_phi1_PCEN_n) begin
     //LUT REGION
     case(mem_addr[2:0])
         3'h0:  perc_q <= 63'b011000_0_1_111_00_00_00_00_00010000_0000_11010000_11110000_01100000_10100000; //bass drum 0
-        3'h1:  perc_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
-        3'h2:  perc_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
-        3'h3:  perc_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
-        3'h4:  perc_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
-        3'h5:  perc_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat   
+        3'h1:  perc_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat     
+        3'h2:  perc_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
+        3'h3:  perc_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
+        3'h4:  perc_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
+        3'h5:  perc_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
         default: perc_q <= 63'b000000_0_0_000_00_00_00_00_00000000_0000_00000000_00000000_00000000_00000000;  
     endcase
 end
@@ -612,11 +738,11 @@ always @(posedge i_EMUCLK) if(!i_phi1_PCEN_n) begin
         6'h0F: mem_q <= 63'b001001_0_0_011_00_11_10_00_00010001_1000_11111110_00010100_01000001_00000011;
 
         6'h10: mem_q <= 63'b011000_0_1_111_00_00_00_00_00010000_0000_11010000_11110000_01100000_10100000; //bass drum 0
-        6'h11: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
-        6'h12: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
-        6'h13: mem_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
-        6'h14: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
-        6'h15: mem_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat     
+        6'h11: mem_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat     
+        6'h12: mem_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
+        6'h13: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
+        6'h14: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
+        6'h15: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
 
         //VRC7 patches
         6'h21: mem_q <= 63'b000101_0_0_110_00_00_01_00_00110001_0000_11101000_10000001_01000010_00100111;
@@ -636,11 +762,11 @@ always @(posedge i_EMUCLK) if(!i_phi1_PCEN_n) begin
         6'h2F: mem_q <= 63'b001101_0_0_000_00_01_11_01_00010010_0000_11001101_00010101_01010000_01100110;
 
         6'h30: mem_q <= 63'b011000_0_1_111_00_00_00_00_00010000_0000_11010000_11110000_01100000_10100000; //bass drum 0
-        6'h31: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
-        6'h32: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
-        6'h33: mem_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
-        6'h34: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
-        6'h35: mem_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat    
+        6'h31: mem_q <= 63'b000000_0_0_000_00_00_00_00_00010000_0000_11000000_10000000_10100000_01110000; //hi hat     
+        6'h32: mem_q <= 63'b000000_0_0_000_00_00_00_00_01010000_0000_11110000_10000000_01010000_10010000; //tom tom    
+        6'h33: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001111_00001000_00000110_00001101; //bass drum 1
+        6'h34: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001101_00001000_00000100_00001000; //snare drum 
+        6'h35: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000001_0000_00001010_00001010_00000101_00000101; //top cymbal 
 
         default: mem_q <= 63'b000000_0_0_000_00_00_00_00_00000000_0000_00000000_00000000_00000000_00000000;   
     endcase
