@@ -10,6 +10,7 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter VRC7_PATCH_CONFI
     input   wire            i_phi1_PCEN_n, //positive edge clock enable for emulation
     input   wire            i_phi1_NCEN_n, //negative edge clock enable for emulation
 
+    //CPU bus signals
     input   wire            i_CS_n,
     input   wire            i_WR_n,
     input   wire            i_A0,
@@ -18,13 +19,17 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter VRC7_PATCH_CONFI
     output  wire    [1:0]   o_D,
     output  wire            o_D_OE,
 
+    //VRC7 patch enable pin
     input   wire            i_VRC7_EN,
 
     //timings
     input   wire            i_CYCLE_12, i_CYCLE_21, i_CYCLE_D3_ZZ, i_CYCLE_D4_ZZ, i_HALF_SUBCYCLE,
 
     //ROM outputs
-    output  reg             o_RHYTHM_KON,
+    output  wire    [8:0]   o_FNUM,
+    output  wire    [2:0]   o_BLOCK,
+    output  reg             o_KON,
+    output  wire            o_SUSEN,
     output  reg     [5:0]   o_TL,
     output  reg             o_DC, o_DM,
     output  reg     [2:0]   o_FB,
@@ -224,19 +229,17 @@ wire            reg20_28_en = (d9reg_addr[5:4] == 2'b10) & d9reg_addr_match & ~i
 wire            reg30_38_en = (d9reg_addr[5:4] == 2'b11) & d9reg_addr_match & ~i_IC_n;
 
 //D9REG
-wire    [8:0]   fnum_reg;
-wire    [2:0]   block_reg;
 wire            kon_reg, susen_reg;
 wire    [3:0]   vol_reg, inst_reg;
 
 IKAOPLL_d9reg #(8) u_fnum_lsbs (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg10_18_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch), .o_Q(fnum_reg[7:0]));
+                                .i_EN(reg10_18_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch), .o_Q(o_FNUM[7:0]));
 
 IKAOPLL_d9reg #(1) u_fnum_msb  (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch[0]), .o_Q(fnum_reg[8]));
+                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch[0]), .o_Q(o_FNUM[8]));
 
 IKAOPLL_d9reg #(3) u_block     (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch[3:1]), .o_Q(block_reg));
+                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch[3:1]), .o_Q(o_BLOCK));
 
 IKAOPLL_d9reg #(1) u_kon       (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
                                 .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch[4]), .o_Q(kon_reg));
@@ -306,13 +309,13 @@ IKAOPLL_instrom #(INSTROM_STYLE) u_instrom (
 
 always @(*) begin
     case({perc_proc_d, perc_proc[0], perc_proc[1], perc_proc[2], perc_proc[3], perc_proc[4]})
-        6'b100000: o_RHYTHM_KON = rhythm_reg[4];
-        6'b010000: o_RHYTHM_KON = rhythm_reg[0];
-        6'b001000: o_RHYTHM_KON = rhythm_reg[2];
-        6'b000100: o_RHYTHM_KON = rhythm_reg[4];
-        6'b000010: o_RHYTHM_KON = rhythm_reg[3];
-        6'b000001: o_RHYTHM_KON = rhythm_reg[1];
-        default:   o_RHYTHM_KON = 1'b0;
+        6'b100000: o_KON = rhythm_reg[4] | kon_reg;
+        6'b010000: o_KON = rhythm_reg[0] | kon_reg;
+        6'b001000: o_KON = rhythm_reg[2] | kon_reg;
+        6'b000100: o_KON = rhythm_reg[4] | kon_reg;
+        6'b000010: o_KON = rhythm_reg[3] | kon_reg;
+        6'b000001: o_KON = rhythm_reg[1] | kon_reg;
+        default:   o_KON = kon_reg;
     endcase
 end
 

@@ -16,7 +16,7 @@ module IKAOPLL_timinggen #(parameter FULLY_SYNCHRONOUS = 1, parameter FAST_RESET
 
     //outputs
     output  wire            o_CYCLE_00, o_CYCLE_12, o_CYCLE_17, o_CYCLE_20, o_CYCLE_21,
-    output  wire            o_CYCLE_D3_ZZ, o_CYCLE_D4_ZZ,
+    output  wire            o_CYCLE_D3_ZZ, o_CYCLE_D4, o_CYCLE_D4_ZZ,
     output  wire            o_HALF_SUBCYCLE, o_RHYTHM_CTRL,
     output  reg             o_FB_EN,
     output  wire            o_MO_CTRL, o_RO_CTRL
@@ -160,6 +160,7 @@ assign  o_CYCLE_00 = mc == 5'd0;
 
 //delayed counter bits
 reg     [1:0]   mc_d4_dly, mc_d3_dly;
+assign  o_CYCLE_D4 = mc[4];
 assign  o_CYCLE_D4_ZZ = mc_d4_dly[1];
 assign  o_CYCLE_D3_ZZ = mc_d3_dly[1];
 always @(posedge i_EMUCLK) if(!phi1ncen_n) begin

@@ -1,4 +1,9 @@
-module IKAOPLL #(parameter FULLY_SYNCHRONOUS = 1, parameter FAST_RESET = 0, parameter USE_VRC7_PATCH = 0) (
+module IKAOPLL #(
+    parameter FULLY_SYNCHRONOUS = 1,        //use DFF only
+    parameter FAST_RESET = 0,               //speed up reset
+    parameter VRC7_PATCH_CONFIG_MODE = 0,   //0 to use external wire, 1 to use bit[4] of TEST register
+    parameter USE_PIPELINED_MULTIPLIER = 0  //1 to add pipelined multiplier to increase fmax
+    ) (
     //chip clock
     input   wire            i_XIN_EMUCLK, //emulator master clock, same as XIN
     output  wire            o_XOUT,
@@ -98,6 +103,7 @@ IKAOPLL_timinggen #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .FAST_RESET(FAST_RESE
     .o_CYCLE_20                 (                           ), 
     .o_CYCLE_21                 (                           ),
 
+    .o_CYCLE_D4                 (                           )
     .o_CYCLE_D3_ZZ              (                           ),
     .o_CYCLE_D4_ZZ              (                           ),
 
@@ -111,7 +117,7 @@ IKAOPLL_timinggen #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .FAST_RESET(FAST_RESE
 
 
 
-IKAOPLL_reg #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .VRC7_PATCH_CONFIG_MODE(), .ROM_STYLE()) u_REG (
+IKAOPLL_reg #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .VRC7_PATCH_CONFIG_MODE(VRC7_PATCH_CONFIG_MODE), .INSTROM_STYLE(0)) u_REG (
     .i_EMUCLK                   (emuclk                     ),
     .i_phiM_PCEN_n              (i_phiM_PCEN_n              ),
 

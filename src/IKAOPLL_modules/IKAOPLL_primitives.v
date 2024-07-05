@@ -28,7 +28,7 @@ end
 
 endmodule
 
-module IKAOPLL_sr #(parameter WIDTH = 1, parameter LENGTH = 9, parameter TAP0 = 9, parameter TAP1 = 9, parameter TAP2 = 9) (
+module IKAOPLL_sr #(parameter WIDTH = 1, parameter LENGTH = 9, parameter TAP0 = LENGTH, parameter TAP1 = LENGTH, parameter TAP2 = LENGTH) (
     input   wire                    i_EMUCLK,
     input   wire                    i_CEN_n,
 
