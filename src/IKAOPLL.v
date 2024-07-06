@@ -107,7 +107,7 @@ IKAOPLL_timinggen #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .FAST_RESET(FAST_RESE
     .o_CYCLE_D3_ZZ              (                           ),
     .o_CYCLE_D4_ZZ              (                           ),
 
-    .o_HALF_SUBCYCLE            (                           ),
+    .o_MnC_SEL                  (                           ),
     .o_RHYTHM_CTRL              (                           ),
     .o_FB_EN                    (                           ),
     

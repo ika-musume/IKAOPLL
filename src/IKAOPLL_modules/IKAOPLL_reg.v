@@ -26,6 +26,7 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter VRC7_PATCH_CONFI
     input   wire            i_CYCLE_12, i_CYCLE_21, i_CYCLE_D3_ZZ, i_CYCLE_D4_ZZ, i_HALF_SUBCYCLE,
 
     //ROM outputs
+    output  wire            o_RHYTHM_EN,
     output  wire    [8:0]   o_FNUM,
     output  wire    [2:0]   o_BLOCK,
     output  reg             o_KON,
@@ -140,6 +141,8 @@ reg             fb_reg;
 reg     [3:0]   test_reg;
 reg     [5:0]   rhythm_reg;
 reg             vrc7_en_reg;
+
+assign  o_RHYTHM_EN = rhythm_reg[5];
 
 `ifdef IKAOPLL_ASYNC_RST
 always @(posedge emuclk or negedge i_IC_n)
