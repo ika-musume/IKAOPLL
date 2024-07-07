@@ -284,7 +284,7 @@ always @(*) begin
     endcase
 end
 
-wire            pgmem_out_en = ~((i_CYCLE_17 | i_CYCLE_20 | i_CYCLE21) & i_RHYTHM_EN);
+wire            pgmem_out_en = ~((i_CYCLE_17 | i_CYCLE_20 | i_CYCLE_21) & i_RHYTHM_EN);
 assign  o_OP_PHASE = rhythm_phase | (cyc18r_phase_sr_out[19:10] & {10{pgmem_out_en}});
 
 

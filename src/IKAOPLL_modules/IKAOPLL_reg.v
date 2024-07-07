@@ -23,7 +23,7 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter VRC7_PATCH_CONFI
     input   wire            i_VRC7_EN,
 
     //timings
-    input   wire            i_CYCLE_12, i_CYCLE_21, i_CYCLE_D3_ZZ, i_CYCLE_D4_ZZ, i_HALF_SUBCYCLE,
+    input   wire            i_CYCLE_12, i_CYCLE_21, i_CYCLE_D3_ZZ, i_CYCLE_D4_ZZ, i_MnC_SEL,
 
     //ROM outputs
     output  wire            o_RHYTHM_EN,
@@ -37,7 +37,11 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter VRC7_PATCH_CONFI
     output  reg             o_AM, o_PM, o_ETYP, o_KSR,
     output  reg     [3:0]   o_MUL,
     output  reg     [1:0]   o_KSL,
-    output  reg     [3:0]   o_AR, o_DR, o_SL, o_RR
+    output  wire    [3:0]   o_AR, o_DR, o_RR,
+    output  reg     [3:0]   o_SL,
+
+    //misc
+    output  wire            o_EG_ENVCNTR_TEST_DATA
 );
 
 
@@ -74,6 +78,7 @@ IKAOPLL_rw_synchronizer #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS)) u_sync_datareg(
 ////
 
 wire    [7:0]   dbus_inlatch;
+assign  o_EG_ENVCNTR_TEST_DATA = dbus_inlatch[2];
 
 generate
 if(FULLY_SYNCHRONOUS == 0) begin : FULLY_SYNCHRONOUS_0_inlatch
@@ -296,7 +301,7 @@ IKAOPLL_instrom #(INSTROM_STYLE) u_instrom (
 
     .i_INST_ADDR                (inst_reg                   ),
     .i_BD0_SEL(perc_proc_d), .i_HH_SEL(perc_proc[0]), .i_TT_SEL(perc_proc[1]), .i_BD1_SEL(perc_proc[2]), .i_SD_SEL(perc_proc[3]), .i_TC_SEL(perc_proc[4]), 
-    .i_MnC_SEL(i_HALF_SUBCYCLE),
+    .i_MnC_SEL(i_MnC_SEL),
 
     .o_TL_ROM(tl_rom), .o_DC_ROM(dc_rom), .o_DM_ROM(dm_rom), .o_FB_ROM(fb_rom),
     .o_AM_ROM(am_rom), .o_PM_ROM(pm_rom), .o_ETYP_ROM(etyp_rom), .o_KSR_ROM(ksr_rom),
@@ -355,11 +360,26 @@ reg     [3:0]   vol_reg_latch, inst_reg_latch;
 always @(posedge i_EMUCLK) if(!phi1pcen_n) vol_reg_latch <= vol_reg;
 always @(posedge i_EMUCLK) if(!phi1pcen_n) inst_reg_latch <= inst_reg;
 
+//EG parameter mask bit
+reg             m_nc_sel_z, kon_z;
+always @(posedge i_EMUCLK) if(!phi1pcen_n) begin
+    m_nc_sel_z <= i_MnC_SEL;
+    kon_z <= o_KON;
+end
+wire            force_egparam_zero = ~inst_latch_oe & m_nc_sel_z & ~kon_z;
+
+//for simulation
 `ifdef IKAOPLL_DEFINE_IDLE_BUS_Z
 `define IB 1'bz
 `else
 `define IB 1'b0
 `endif
+
+//mask parameter if needed
+reg     [3:0]   ar_muxed, dr_muxed, rr_muxed;
+assign  o_AR = force_egparam_zero ? 4'd0 : ar_muxed;
+assign  o_DR = force_egparam_zero ? 4'd0 : dr_muxed;
+assign  o_RR = force_egparam_zero ? 4'd0 : rr_muxed;
 
 //output selector
 always @(*) begin
@@ -383,25 +403,25 @@ always @(*) begin
             o_AM = am_rom; o_PM = pm_rom; o_ETYP = etyp_rom; o_KSR = ksr_rom;
             o_MUL = mul_rom;
             o_KSL = ksl_rom;
-            o_AR = ar_rom; o_DR = dr_rom; o_SL = sl_rom; o_RR = rr_rom;
+            ar_muxed = ar_rom; dr_muxed = dr_rom; rr_muxed = rr_rom; o_SL = sl_rom; 
         end
         3'b010: begin
             o_AM = am_reg[0]; o_PM = pm_reg[0]; o_ETYP = etyp_reg[0]; o_KSR = ksr_reg[0];
             o_MUL = mul_reg[0];
             o_KSL = ksl_reg[0];
-            o_AR = ar_reg[0]; o_DR = dr_reg[0]; o_SL = sl_reg[0]; o_RR = rr_reg[0];
+            ar_muxed = ar_reg[0]; dr_muxed = dr_reg[0]; rr_muxed = rr_reg[0]; o_SL = sl_reg[0]; 
         end
         3'b001: begin
             o_AM = am_reg[1]; o_PM = pm_reg[1]; o_ETYP = etyp_reg[1]; o_KSR = ksr_reg[1];
             o_MUL = mul_reg[1];
             o_KSL = ksl_reg[1];
-            o_AR = ar_reg[1]; o_DR = dr_reg[1]; o_SL = sl_reg[1]; o_RR = rr_reg[1];
+            ar_muxed = ar_reg[1]; dr_muxed = dr_reg[1]; rr_muxed = rr_reg[1]; o_SL = sl_reg[1]; 
         end
         default: begin
             o_AM = `IB; o_PM = `IB; o_ETYP = `IB; o_KSR = `IB;
             o_MUL = {4{`IB}};
             o_KSL = {2{`IB}};
-            o_AR = {4{`IB}}; o_DR = {4{`IB}}; o_SL = {4{`IB}}; o_RR = {4{`IB}};
+            ar_muxed = {4{`IB}}; dr_muxed = {4{`IB}}; rr_muxed = {4{`IB}}; o_SL = {4{`IB}}; 
         end
     endcase
 end
