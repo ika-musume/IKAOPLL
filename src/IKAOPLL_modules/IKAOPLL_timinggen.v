@@ -18,7 +18,7 @@ module IKAOPLL_timinggen #(parameter FULLY_SYNCHRONOUS = 1, parameter FAST_RESET
     output  wire            o_CYCLE_00, o_CYCLE_12, o_CYCLE_17, o_CYCLE_20, o_CYCLE_21,
     output  wire            o_CYCLE_D3_ZZ, o_CYCLE_D4, o_CYCLE_D4_ZZ,
     output  wire            o_MnC_SEL, o_RHYTHM_CTRL,
-    output  reg             o_FB_EN,
+    output  reg             o_HH_TT_SEL,
     output  wire            o_MO_CTRL, o_RO_CTRL
 );
 
@@ -175,6 +175,6 @@ assign  o_MnC_SEL       =  &{(~mc[2] | mc[0]), (mc[2] | ~mc[1])}; //de morgan
 assign  o_RHYTHM_CTRL   = ~|{o_MnC_SEL, ((mc == 5'd20) && i_RHYTHM_EN), ((mc == 5'd19) && i_RHYTHM_EN)};
 assign  o_MO_CTRL       = ~|{(i_RHYTHM_EN & o_CYCLE_D4_ZZ), ~o_MnC_SEL};
 assign  o_RO_CTRL       =  &{(~o_MnC_SEL | o_CYCLE_D4_ZZ), ~(mc == 5'd18), ~(mc == 5'd12), i_RHYTHM_EN}; //de morgan
-always @(posedge i_EMUCLK) if(!phi1ncen_n) o_FB_EN <= &{o_MnC_SEL, ~((mc[4:1] == 4'b1000) && i_RHYTHM_EN)};
+always @(posedge i_EMUCLK) if(!phi1ncen_n) o_HH_TT_SEL <= &{o_MnC_SEL, ~((mc[4:1] == 4'b1000) && i_RHYTHM_EN)};
 
 endmodule
