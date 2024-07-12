@@ -508,7 +508,7 @@ module IKAOPLL_d9reg #(parameter WIDTH = 1) (
 );
 
 wire    [WIDTH-1:0]     d, q_0, q_1, q_2, q_last;
-primitive_sr #(.WIDTH(WIDTH), .LENGTH(9), .TAP0(2), .TAP1(5), .TAP2(8)) u_d9reg 
+IKAOPLL_sr #(.WIDTH(WIDTH), .LENGTH(9), .TAP0(2), .TAP1(5), .TAP2(8)) u_d9reg 
 (.i_EMUCLK(i_EMUCLK), .i_CEN_n(i_phi1_NCEN_n), .i_D(d), .o_Q_TAP0(q_0), .o_Q_TAP1(q_1), .o_Q_TAP2(q_2), .o_Q_LAST(q_last));
 
 assign  d = i_EN ? i_D : q_last;

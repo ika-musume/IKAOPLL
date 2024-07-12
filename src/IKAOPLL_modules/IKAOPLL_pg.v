@@ -47,9 +47,13 @@ wire            phi1ncen_n = i_phi1_NCEN_n;
 
 reg     [8:0]   cyc0r_fnum;
 reg     [2:0]   cyc0r_block;
+reg     [3:0]   cyc0r_mul;
+reg             cyc0r_pm;
 always @(posedge emuclk) if(!phi1ncen_n) begin
     cyc0r_fnum <= i_FNUM;
     cyc0r_block <= i_BLOCK;
+    cyc0r_mul <= i_MUL;
+    cyc0r_pm <= i_PM;
 end
 
 
@@ -68,10 +72,10 @@ if(USE_PIPELINED_MULTIPLIER == 1) begin : USE_PIPELINED_MULTIPLIER_1
 ////
 
 //make phase modulation value using high bits of the FNUM
-wire            cyc1c_pmamt_sign = i_PM[2] & i_PM;
+wire            cyc1c_pmamt_sign = i_PMVAL[2] & cyc0r_pm;
 reg     [2:0]   cyc1c_pmamt_val;
 always @(*) begin
-    case(i_PMVAL[1:0] & {2{i_PM}})
+    case(i_PMVAL[1:0] & {2{cyc0r_pm}})
         2'b00: cyc1c_pmamt_val = 3'b000                  ^ {3{cyc1c_pmamt_sign}};
         2'b01: cyc1c_pmamt_val = {1'b0, cyc0r_fnum[8:7]} ^ {3{cyc1c_pmamt_sign}};
         2'b10: cyc1c_pmamt_val = {cyc0r_fnum[8:6]}       ^ {3{cyc1c_pmamt_sign}};
@@ -106,7 +110,7 @@ reg     [3:0]   cyc1r_mul;
 reg     [16:0]  cyc1r_phase_shifted;
 reg     [18:0]  cyc1r_phase_prev;
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    cyc1r_mul <= i_MUL;
+    cyc1r_mul <= cyc0r_mul;
     cyc1r_phase_shifted <= cyc1c_blockshifter1;
 
     cyc1r_phase_prev <= ~(~i_PG_PHASE_RST | i_TEST[2]) ? cyc18r_phase_sr_out : 19'd0;
@@ -144,10 +148,10 @@ else begin : USE_PIPELINED_MULTIPLIER_0
 ////
 
 //make phase modulation value using high bits of the FNUM
-wire            cyc1c_pmamt_sign = i_PM[2] & i_PM;
+wire            cyc1c_pmamt_sign = i_PMVAL[2] & cyc0r_pm;
 reg     [2:0]   cyc1c_pmamt_val;
 always @(*) begin
-    case(i_PMVAL[1:0] & {2{i_PM}})
+    case(i_PMVAL[1:0] & {2{cyc0r_pm}})
         2'b00: cyc1c_pmamt_val = 3'b000                  ^ {3{cyc1c_pmamt_sign}};
         2'b01: cyc1c_pmamt_val = {1'b0, cyc0r_fnum[8:7]} ^ {3{cyc1c_pmamt_sign}};
         2'b10: cyc1c_pmamt_val = {cyc0r_fnum[8:6]}       ^ {3{cyc1c_pmamt_sign}};
@@ -178,7 +182,7 @@ always @(*) begin
 end
 
 //apply MUL
-reg     [20:0]  cyc1c_phase_multiplied = cyc1c_blockshifter1 * i_MUL;
+reg     [20:0]  cyc1c_phase_multiplied = cyc1c_blockshifter1 * cyc0r_mul;
 
 //previous phase
 wire    [18:0]  cyc1c_phase_prev;

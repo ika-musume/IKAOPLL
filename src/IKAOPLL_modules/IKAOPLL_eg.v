@@ -18,7 +18,11 @@ module IKAOPLL_eg (
     input   wire    [2:0]   i_BLOCK,
     input   wire            i_KON,
     input   wire            i_SUSEN,
+    input   wire    [5:0]   i_TL,
     input   wire            i_ETYP,
+    input   wire            i_AM,
+    input   wire    [3:0]   i_AMVAL,
+    input   wire    [1:0]   i_KSL,
     input   wire            i_AR, i_DR, i_RR, i_SL,
     input   wire    [3:0]   i_TEST,
 
@@ -26,7 +30,9 @@ module IKAOPLL_eg (
     input   wire            i_EG_ENVCNTR_TEST_DATA,
 
     //control output
-    output  wire            o_PG_RST_PHASE
+    output  wire            o_PG_PHASE_RST,
+    output  wire    [6:0]   o_OP_ATTNLV,
+    output  wire            o_OP_ATTNLV_MAX
 );
 
 
@@ -112,7 +118,7 @@ end
 //envelope status sr
 wire    [1:0]   cyc2c_next_envstat;
 wire    [1:0]   cyc17r_envstat, cyc19r_envstat;
-primitive_sr #(.WIDTH(2), .LENGTH(18), .TAP0(16)) u_cyc2r_cyc19r_envstatreg
+IKAOPLL_sr #(.WIDTH(2), .LENGTH(18), .TAP0(16)) u_cyc2r_cyc19r_envstatreg
 (.i_EMUCLK(i_EMUCLK), .i_CEN_n(i_phi1_NCEN_n), .i_D(cyc2c_next_envstat), .o_Q_TAP0(cyc17r_envstat), .o_Q_LAST(cyc19r_envstat));
 
 //attenuation level flags, declare here first
@@ -139,7 +145,7 @@ end
 
 //phase reset signal
 reg     [14:0]  hh_tt_start_attack_dly; //delays rhythm "start attack" signal for HH(ch8m) and TT(ch9m)
-assign  o_PG_RST_PHASE = i_HH_TT_SEL ? hh_tt_start_attack_dly[14] : cyc18r_start_attack;
+assign  o_PG_PHASE_RST = i_HH_TT_SEL ? hh_tt_start_attack_dly[14] : cyc18r_start_attack;
 always @(posedge emuclk) if(!phi1ncen_n) begin
     hh_tt_start_attack_dly[0] <= cyc18r_start_attack;
     hh_tt_start_attack_dly[14:1] <= hh_tt_start_attack_dly[13:0];
@@ -282,37 +288,104 @@ always @(posedge emuclk) if(!phi1ncen_n) cyc2r_attnlv <= cyc2c_next_attnlv;
 
 
 ///////////////////////////////////////////////////////////
-//////  Cycle 3-19 shift register
+//////  Cycle 3-19 attenuation level storage
 ////
 
 //cycle 3 to 19
 wire    [6:0]   cyc17r_attnlv, cyc18r_attnlv;
-primitive_sr #(.WIDTH(7), .LENGTH(17), .TAP0(15), .TAP1(16)) u_cyc3r_cyc19r_attnlvreg
-(.i_EMUCLK(i_EMUCLK), .i_CEN_n(phi1ncen_n), .i_D(cyc2r_attnlv), .o_Q_TAP0(cyc17r_attnlv), .o_Q_TAP1(cyc18r_attnlv), , .o_Q_LAST(cyc19r_attnlv));
+IKAOPLL_sr #(.WIDTH(7), .LENGTH(17), .TAP0(15), .TAP1(16)) u_cyc3r_cyc19r_attnlvreg
+(.i_EMUCLK(i_EMUCLK), .i_CEN_n(phi1ncen_n), .i_D(cyc2r_attnlv), .o_Q_TAP0(cyc17r_attnlv), .o_Q_TAP1(cyc18r_attnlv), .o_Q_LAST(cyc19r_attnlv));
 
 //cycle 18
 assign  cyc18c_attnlv_quite = cyc17r_attnlv[6:2] == 5'd0;
+reg     [3:0]   cyc18r_sl;
+always @(posedge emuclk) if(!phi1ncen_n) cyc18r_sl <= i_SL;
 
 //cycle 19
 reg     [3:0]   cyc19r_sl;
-always @(posedge emuclk) if(!phi1ncen_n) cyc19r_sl <= i_SL;
+always @(posedge emuclk) if(!phi1ncen_n) cyc19r_sl <= cyc18r_sl;
 
 //cycle 2
 assign  cyc2c_attnlv_min = cyc19r_attnlv == 7'd0;
-assign  cyc2c_attnlv_max = cyc19r_attnlv == 7'd127;
+assign  o_OP_ATTNLV_MAX = cyc19r_attnlv == 7'd127;
 assign  cyc2c_decay_end = cyc19r_attnlv[6:2] == cyc19r_sl;
 
 
 
 
+///////////////////////////////////////////////////////////
+//////  Cycle 18: generate key scale value
+////
+
+//base attenuation value according to the frequency
+reg     [6:0]   cyc18c_ksval_base;
+always @(*) begin
+    case(i_FNUM[8:5])
+        4'h0: cyc18c_ksval_base = 7'd0;
+        4'h1: cyc18c_ksval_base = 7'd32;
+        4'h2: cyc18c_ksval_base = 7'd40;
+        4'h3: cyc18c_ksval_base = 7'd45;
+        4'h4: cyc18c_ksval_base = 7'd48;
+        4'h5: cyc18c_ksval_base = 7'd51;
+        4'h6: cyc18c_ksval_base = 7'd53;
+        4'h7: cyc18c_ksval_base = 7'd55;
+        4'h8: cyc18c_ksval_base = 7'd56;
+        4'h9: cyc18c_ksval_base = 7'd58;
+        4'hA: cyc18c_ksval_base = 7'd59;
+        4'hB: cyc18c_ksval_base = 7'd60;
+        4'hC: cyc18c_ksval_base = 7'd61;
+        4'hD: cyc18c_ksval_base = 7'd62;
+        4'hE: cyc18c_ksval_base = 7'd63;
+        4'hF: cyc18c_ksval_base = 7'd64;
+    endcase
+end
+
+//additional tuning
+wire    [3:0]   cyc18c_ksval_adder_hi = cyc18c_ksval_base[5:3] + i_BLOCK;
+wire    [5:0]   cyc18c_ksval = (cyc18c_ksval_adder_hi[3] | cyc18c_ksval_base[6]) ? {cyc18c_ksval_adder_hi[2:0], cyc18c_ksval_base[2:0]} : 6'd0;
+
+//shift
+reg     [6:0]   cyc18c_ksval_shifted;
+always @(*) begin
+    case(i_KSL)
+        2'd0: cyc18c_ksval_shifted = 7'd0;
+        2'd1: cyc18c_ksval_shifted = {2'b00, cyc18c_ksval[5:1]};
+        2'd2: cyc18c_ksval_shifted = {1'b0, cyc18c_ksval};
+        2'd3: cyc18c_ksval_shifted = {cyc18c_ksval, 1'b0};
+    endcase
+end
+
+//add TL
+reg     [7:0]   cyc18r_ksval_tl;
+always @(posedge emuclk) if(!phi1ncen_n) cyc18r_ksval_tl <= cyc18c_ksval_shifted + {i_TL, 1'b0};
+
+//latch AM bit
+reg     [7:0]   cyc18r_am;
+always @(posedge emuclk) if(!phi1ncen_n) cyc18r_am <= i_AM;
 
 
 
+///////////////////////////////////////////////////////////
+//////  Cycle 19: apply AMVAL
+////
 
+//apply the amplitude modulation value to the key scale value
+wire    [7:0]   cyc19c_ksval_am = cyc18r_ksval_tl[6:0] + (cyc18r_am ? i_AMVAL : 4'd0);
 
+//apply the final key scale value to the base attenuation level
+wire    [7:0]   cyc19c_attnlv_scaled = cyc19c_ksval_am[6:0] + cyc18r_attnlv;
 
+//collect the overflow bits
+wire            cyc19c_ksval_ovfl = cyc18r_ksval_tl[7] | cyc19c_ksval_am[7] | cyc19c_attnlv_scaled[7];
 
+//saturation
+wire    [6:0]   cyc19c_attnlv_saturated = cyc19c_ksval_ovfl ? 7'd127 : cyc19c_attnlv_scaled[6:0];
 
+//register part
+reg     [6:0]   cyc19r_final_attnlv;
+always @(posedge emuclk) if(!phi1ncen_n) i_TEST[0] ? 7'd0 : cyc19c_attnlv_saturated;
+
+assign  o_OP_ATTNLV = cyc19r_final_attnlv
 
 
 endmodule
