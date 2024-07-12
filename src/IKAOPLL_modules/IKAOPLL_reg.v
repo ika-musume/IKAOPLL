@@ -1,4 +1,4 @@
-module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter VRC7_PATCH_CONFIG_MODE = 0, parameter INSTROM_STYLE = 0) (
+module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter ALTPATCH_CONFIG_MODE = 0, parameter INSTROM_STYLE = 0) (
     //master clock
     input   wire            i_EMUCLK, //emulator master clock
     input   wire            i_phiM_PCEN_n,
@@ -297,7 +297,7 @@ IKAOPLL_instrom #(INSTROM_STYLE) u_instrom (
     .i_phi1_PCEN_n              (phi1pcen_n                 ),
 
     //1 = use the optional VRC7 enable register, 0 = use value from off-chip
-    .i_VRC7_EN                  (VRC7_PATCH_CONFIG_MODE ? vrc7_en_reg : i_VRC7_EN),
+    .i_VRC7_EN                  (ALTPATCH_CONFIG_MODE ? vrc7_en_reg : i_VRC7_EN),
 
     .i_INST_ADDR                (inst_reg                   ),
     .i_BD0_SEL(perc_proc_d), .i_HH_SEL(perc_proc[0]), .i_TT_SEL(perc_proc[1]), .i_BD1_SEL(perc_proc[2]), .i_SD_SEL(perc_proc[3]), .i_TC_SEL(perc_proc[4]), 
@@ -335,19 +335,19 @@ end
 
 wire            cust_inst_sel = ~|{perc_proc_d, perc_proc[0], perc_proc[1], perc_proc[2], perc_proc[3], perc_proc[4]} & inst_reg == 4'h0;
 
-reg             half_subcycle_z, cust_inst_sel_z;
+reg             m_nc_sel_z, cust_inst_sel_z;
 always @(posedge i_EMUCLK) if(!phi1pcen_n) begin //positive!!!
-    half_subcycle_z <= i_HALF_SUBCYCLE;
+    m_nc_sel_z <= i_MnC_SEL;
     cust_inst_sel_z <= cust_inst_sel;
 end
 
 //custom instrument parameter register(d1reg) output enables
-wire            reg_mod_oe = cust_inst_sel_z &  half_subcycle_z; //register-modulator OE
-wire            reg_car_oe = cust_inst_sel_z & ~half_subcycle_z; //register-carrier OE
+wire            reg_mod_oe = cust_inst_sel_z &  m_nc_sel_z; //register-modulator OE
+wire            reg_car_oe = cust_inst_sel_z & ~m_nc_sel_z; //register-carrier OE
 wire            fdbk_reg_oe = cust_inst_sel_z; //instrument register OE
 
 //channel instrument/volume register(d9reg) output latch enables, for percussion volume processing
-wire            vol_latch_oe = ~half_subcycle_z; //volume register outlatch OE
+wire            vol_latch_oe = ~m_nc_sel_z; //volume register outlatch OE
 reg             inst_latch_oe;
 always @(posedge i_EMUCLK) if(!phi1pcen_n) inst_latch_oe <= perc_proc[0] | perc_proc[1];
 
@@ -361,9 +361,8 @@ always @(posedge i_EMUCLK) if(!phi1pcen_n) vol_reg_latch <= vol_reg;
 always @(posedge i_EMUCLK) if(!phi1pcen_n) inst_reg_latch <= inst_reg;
 
 //EG parameter mask bit
-reg             m_nc_sel_z, kon_z;
+reg             kon_z;
 always @(posedge i_EMUCLK) if(!phi1pcen_n) begin
-    m_nc_sel_z <= i_MnC_SEL;
     kon_z <= o_KON;
 end
 wire            force_egparam_zero = ~inst_latch_oe & m_nc_sel_z & ~kon_z;

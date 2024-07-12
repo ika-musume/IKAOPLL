@@ -22,6 +22,7 @@ module IKAOPLL_eg (
     input   wire            i_ETYP,
     input   wire            i_AM,
     input   wire    [3:0]   i_AMVAL,
+    input   wire            i_KSR,
     input   wire    [1:0]   i_KSL,
     input   wire            i_AR, i_DR, i_RR, i_SL,
     input   wire    [3:0]   i_TEST,
@@ -265,9 +266,9 @@ always @(*) begin
         4'b0001: cyc2c_attndelta = cyc2c_dec_attnlv ? {4'b1111, ~cyc19r_attnlv[6:4]} : 7'd0;
         4'b0010: cyc2c_attndelta = cyc2c_dec_attnlv ? {3'b111, ~cyc19r_attnlv[6:3]} : 7'd0;
         4'b0100: cyc2c_attndelta = cyc2c_dec_attnlv ? {2'b11, ~cyc19r_attnlv[6:3], cyc2c_attn_act ? 1'b1 : ~cyc19r_attnlv[2]} : 
-                                                      {6'b000000,                  cyc2c_attn_act ? 1'b1 : 1'b0}
+                                                      {6'b000000,                  cyc2c_attn_act ? 1'b1 : 1'b0};
         4'b1000: cyc2c_attndelta = cyc2c_dec_attnlv ? {2'b1, ~cyc19r_attnlv[6:3],  cyc2c_attn_act ? 1'b1 : ~cyc19r_attnlv[2], ~cyc19r_attnlv[1]} : 
-                                                      {5'b00000,                   cyc2c_attn_act ? 1'b1 : 1'b0,              1'b0}
+                                                      {5'b00000,                   cyc2c_attn_act ? 1'b1 : 1'b0,              1'b0};
         default: cyc2c_attndelta = 7'd0;
     endcase
 end
@@ -383,9 +384,9 @@ wire    [6:0]   cyc19c_attnlv_saturated = cyc19c_ksval_ovfl ? 7'd127 : cyc19c_at
 
 //register part
 reg     [6:0]   cyc19r_final_attnlv;
-always @(posedge emuclk) if(!phi1ncen_n) i_TEST[0] ? 7'd0 : cyc19c_attnlv_saturated;
+always @(posedge emuclk) if(!phi1ncen_n) cyc19r_final_attnlv <= i_TEST[0] ? 7'd0 : cyc19c_attnlv_saturated;
 
-assign  o_OP_ATTNLV = cyc19r_final_attnlv
+assign  o_OP_ATTNLV = cyc19r_final_attnlv;
 
 
 endmodule

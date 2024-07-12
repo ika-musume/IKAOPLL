@@ -34,7 +34,7 @@ end
 IKAOPLL #(
     .FULLY_SYNCHRONOUS          (1                          ),
     .FAST_RESET                 (1                          ),
-    .USE_VRC7_PATCH             (0                          )
+    .ALTPATCH_CONFIG_MODE       (0                          )
 ) main (
     .i_XIN_EMUCLK               (EMUCLK                     ),
     .o_XOUT                     (                           ),

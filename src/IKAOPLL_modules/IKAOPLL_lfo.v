@@ -9,7 +9,7 @@ module IKAOPLL_lfo (
     input   wire            i_IC_n,
 
     //timings
-    input   wire            i_CYCLE_00, i_CYCLE_21, i_CYCLE_D4,
+    input   wire            i_CYCLE_00, i_CYCLE_21, i_CYCLE_D4, i_CYCLE_D3_ZZ,
 
     //test register
     input   wire    [3:0]   i_TEST,
@@ -24,7 +24,6 @@ module IKAOPLL_lfo (
 ////
 
 wire            emuclk = i_EMUCLK;
-wire            phiMpcen_n = i_phiM_PCEN_n;
 wire            phi1pcen_n = i_phi1_PCEN_n;
 wire            phi1ncen_n = i_phi1_NCEN_n;
 

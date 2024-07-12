@@ -1,7 +1,7 @@
 module IKAOPLL #(
     parameter FULLY_SYNCHRONOUS = 1,        //use DFF only
     parameter FAST_RESET = 0,               //speed up reset
-    parameter VRC7_PATCH_CONFIG_MODE = 0,   //0 to use external wire, 1 to use bit[4] of TEST register
+    parameter ALTPATCH_CONFIG_MODE = 0,   //0 to use external wire, 1 to use bit[4] of TEST register
     parameter USE_PIPELINED_MULTIPLIER = 0  //1 to add pipelined multiplier to increase fmax
     ) (
     //chip clock
@@ -71,19 +71,13 @@ wire            mrst_n;
 ////
 
 wire            rhythm_en;
-assign rhythm_en = 1'b1;
+assign rhythm_en = 1'b0;
 
 
 
-
-
-
-
-
-
-
-
-
+///////////////////////////////////////////////////////////
+//////  TIMING GENERATOR
+////
 
 IKAOPLL_timinggen #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .FAST_RESET(FAST_RESET)) u_TIMINGGEN (
     .i_EMUCLK                   (emuclk                     ),
@@ -103,21 +97,21 @@ IKAOPLL_timinggen #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .FAST_RESET(FAST_RESE
     .o_CYCLE_20                 (                           ), 
     .o_CYCLE_21                 (                           ),
 
-    .o_CYCLE_D4                 (                           )
+    .o_CYCLE_D4                 (                           ),
     .o_CYCLE_D3_ZZ              (                           ),
     .o_CYCLE_D4_ZZ              (                           ),
 
     .o_MnC_SEL                  (                           ),
-    .o_RHYTHM_CTRL              (                           ),
-    .o_FB_EN                    (                           ),
+    .o_INHIBIT_FDBK             (                           ),
+    .o_HH_TT_SEL                (                           ),
     
     .o_MO_CTRL                  (                           ),
     .o_RO_CTRL                  (                           )
 );
 
 
-
-IKAOPLL_reg #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .VRC7_PATCH_CONFIG_MODE(VRC7_PATCH_CONFIG_MODE), .INSTROM_STYLE(0)) u_REG (
+/*
+IKAOPLL_reg #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .ALTPATCH_CONFIG_MODE(ALTPATCH_CONFIG_MODE), .INSTROM_STYLE(0)) u_REG (
     .i_EMUCLK                   (emuclk                     ),
     .i_phiM_PCEN_n              (i_phiM_PCEN_n              ),
 
@@ -132,8 +126,11 @@ IKAOPLL_reg #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .VRC7_PATCH_CONFIG_MODE(VRC
     
     .i_D                        (i_D                        ),
     .o_D                        (o_D                        ),
-    .o_D_OE                     (o_D_OE                     )
+    .o_D_OE                     (o_D_OE                     ),
+
+    .o_EG_FORCE_EGPARAM_ZERO    (                           )
 );
+*/
 
 
 endmodule 

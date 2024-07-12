@@ -99,7 +99,7 @@ always @(*) begin
         2'b11: cyc1c_blockshifter0 = {cyc1c_phase_modded, 3'b000};
     endcase
 
-    case(cyc1c_blockshifter1[2])
+    case(cyc0r_block[2])
         1'b0: cyc1c_blockshifter1 = {cyc1c_blockshifter0, 3'b000};
         1'b1: cyc1c_blockshifter1 = {4'b0000, cyc1c_blockshifter0[13:1]};
     endcase
@@ -175,14 +175,14 @@ always @(*) begin
         2'b11: cyc1c_blockshifter0 = {cyc1c_phase_modded, 3'b000};
     endcase
 
-    case(cyc1c_blockshifter1[2])
+    case(cyc0r_block[2])
         1'b0: cyc1c_blockshifter1 = {cyc1c_blockshifter0, 3'b000};
         1'b1: cyc1c_blockshifter1 = {4'b0000, cyc1c_blockshifter0[13:1]};
     endcase
 end
 
 //apply MUL
-reg     [20:0]  cyc1c_phase_multiplied = cyc1c_blockshifter1 * cyc0r_mul;
+wire    [20:0]  cyc1c_phase_multiplied = cyc1c_blockshifter1 * cyc0r_mul;
 
 //previous phase
 wire    [18:0]  cyc1c_phase_prev;
@@ -289,7 +289,7 @@ always @(*) begin
 end
 
 wire            pgmem_out_en = ~((i_CYCLE_17 | i_CYCLE_20 | i_CYCLE_21) & i_RHYTHM_EN);
-assign  o_OP_PHASE = rhythm_phase | (cyc18r_phase_sr_out[19:10] & {10{pgmem_out_en}});
+assign  o_OP_PHASE = rhythm_phase | (cyc18r_phase_sr_out[18:9] & {10{pgmem_out_en}});
 
 
 
