@@ -14,13 +14,13 @@ module IKAOPLL_pg #(parameter USE_PIPELINED_MULTIPLIER = 1) (
     input   wire            i_CYCLE_17, i_CYCLE_20, i_CYCLE_21,
 
     //parameters
+    input   wire    [3:0]   i_TEST,
     input   wire            i_RHYTHM_EN,
     input   wire    [8:0]   i_FNUM,
     input   wire    [2:0]   i_BLOCK,
     input   wire            i_PM,
     input   wire    [2:0]   i_PMVAL,
     input   wire    [3:0]   i_MUL,
-    input   wire    [3:0]   i_TEST,
 
     //control
     input   wire            i_PG_PHASE_RST,

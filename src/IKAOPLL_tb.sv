@@ -43,6 +43,8 @@ IKAOPLL #(
 
     .i_IC_n                     (IC_n                       ),
 
+    .i_ALTPATCH_EN              (1'b0                       ),
+
     .i_CS_n                     (CS_n                       ),
     .i_WR_n                     (WR_n                       ),
     .i_A0                       (A0                         ),
@@ -78,11 +80,91 @@ task automatic IKAOPLL_write (
     @(posedge i_CLK) o_DATA = 8'hZZ;
 end endtask
 
+`define AD #150
+`define DD #800
+
 initial begin
     #1500;
 
     #100 IKAOPLL_write(1'b0, 8'h00, phiMref, CS_n, WR_n, A0, DIN);
-    #100 IKAOPLL_write(1'b1, 8'h7A, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h01, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h02, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h03, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h04, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h05, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h06, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h07, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h0E, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'h00, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h0F, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'hFF, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'h00, phiMref, CS_n, WR_n, A0, DIN);
+
+    `DD IKAOPLL_write(1'b0, 8'h10, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hAC, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h11, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hAC, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hAC, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h13, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hAC, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h14, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hAC, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h15, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hAC, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h16, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hAC, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h17, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hAC, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h18, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hAC, phiMref, CS_n, WR_n, A0, DIN);
+
+    `DD IKAOPLL_write(1'b0, 8'h20, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h21, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h22, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h23, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h24, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h25, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h26, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h27, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h28, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h12, phiMref, CS_n, WR_n, A0, DIN);
+
+    `DD IKAOPLL_write(1'b0, 8'h30, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h0C, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h31, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h1C, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h32, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h2C, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h33, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h3C, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h34, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h4C, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h35, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h5C, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h36, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h6C, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h37, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h7C, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h38, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h8C, phiMref, CS_n, WR_n, A0, DIN);
 end
 
 endmodule

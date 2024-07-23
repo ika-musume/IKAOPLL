@@ -4,7 +4,7 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter ALTPATCH_CONFIG_
     input   wire            i_phiM_PCEN_n,
 
     //master reset
-    input   wire            i_IC_n,
+    input   wire            i_RST_n,
 
     //internal clock
     input   wire            i_phi1_PCEN_n, //positive edge clock enable for emulation
@@ -20,12 +20,13 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter ALTPATCH_CONFIG_
     output  wire            o_D_OE,
 
     //VRC7 patch enable pin
-    input   wire            i_VRC7_EN,
+    input   wire            i_ALTPATCH_EN,
 
     //timings
     input   wire            i_CYCLE_12, i_CYCLE_21, i_CYCLE_D3_ZZ, i_CYCLE_D4_ZZ, i_MnC_SEL,
 
     //ROM outputs
+    output  wire    [3:0]   o_TEST,
     output  wire            o_RHYTHM_EN,
     output  wire    [8:0]   o_FNUM,
     output  wire    [2:0]   o_BLOCK,
@@ -55,6 +56,8 @@ wire            phiMpcen_n = i_phiM_PCEN_n;
 wire            phi1pcen_n = i_phi1_PCEN_n;
 wire            phi1ncen_n = i_phi1_NCEN_n;
 
+assign  o_D_OE = |{i_CS_n, ~i_WR_n, i_A0, ~i_RST_n};
+
 
 
 ///////////////////////////////////////////////////////////
@@ -64,11 +67,11 @@ wire            phi1ncen_n = i_phi1_NCEN_n;
 wire            addrreg_wrrq, datareg_wrrq;
 IKAOPLL_rw_synchronizer #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS)) u_sync_addrreg(
     .i_EMUCLK(emuclk), .i_phiM_PCEN_n(phiMpcen_n), .i_phi1_NCEN_n(phi1ncen_n),
-    .i_IC_n(i_IC_n), .i_IN(~|{i_CS_n, i_WR_n, i_A0}), .o_OUT(addrreg_wrrq)
+    .i_RST_n(i_RST_n), .i_IN(~|{i_CS_n, i_WR_n, i_A0}), .o_OUT(addrreg_wrrq)
 );
 IKAOPLL_rw_synchronizer #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS)) u_sync_datareg(
     .i_EMUCLK(emuclk), .i_phiM_PCEN_n(phiMpcen_n), .i_phi1_NCEN_n(phi1ncen_n),
-    .i_IC_n(i_IC_n), .i_IN(~|{i_CS_n, i_WR_n, ~i_A0}), .o_OUT(datareg_wrrq)
+    .i_RST_n(i_RST_n), .i_IN(~|{i_CS_n, i_WR_n, ~i_A0}), .o_OUT(datareg_wrrq)
 );
 
 
@@ -85,7 +88,7 @@ if(FULLY_SYNCHRONOUS == 0) begin : FULLY_SYNCHRONOUS_0_inlatch
 
 wire    [7:0]   dbus_inlatch_temp;
 IKAOPLL_dlatch #(.WIDTH(8)) u_dbus_inlatch_temp (
-    .i_EN(~|{i_CS_n, i_WR_n, ~i_IC_n}), .i_D(i_D), .o_Q(dbus_inlatch_temp)
+    .i_EN(~|{i_CS_n, i_WR_n, ~i_RST_n}), .i_D(i_D), .o_Q(dbus_inlatch_temp)
 );
 
 assign  dbus_inlatch = dbus_inlatch_temp;
@@ -127,8 +130,8 @@ endgenerate
 ////
 
 //latch D1REG address, the original chip latches "decoded" register select bits
-reg     [3:0]   d1reg_addr;
-always @(posedge emuclk) if(!phi1ncen_n) if(addrreg_wrrq && dbus_inlatch[7:4] == 4'h0) d1reg_addr <= dbus_inlatch[3:0];
+reg     [7:0]   d1reg_addr;
+always @(posedge emuclk) if(!phi1ncen_n) if(addrreg_wrrq) d1reg_addr <= dbus_inlatch;
 
 //D1REG pair, 0=modulator 1=carrier
 reg     [1:0]   am_reg, pm_reg, etyp_reg, ksr_reg;
@@ -145,17 +148,18 @@ reg             dc_reg, dm_reg;
 reg             fb_reg;
 reg     [3:0]   test_reg;
 reg     [5:0]   rhythm_reg;
-reg             vrc7_en_reg;
+reg             altpatch_en_reg;
 
+assign  o_TEST = test_reg;
 assign  o_RHYTHM_EN = rhythm_reg[5];
 
 `ifdef IKAOPLL_ASYNC_RST
-always @(posedge emuclk or negedge i_IC_n)
+always @(posedge emuclk or negedge i_RST_n)
 `else
 always @(posedge emuclk)
 `endif
 begin
-    if(!i_IC_n) begin
+    if(!i_RST_n) begin
         am_reg <= 2'b00; pm_reg <= 2'b00; etyp_reg <= 2'b00; ksr_reg <= 2'b00;
         mul_reg[0] <= 4'd0; mul_reg[1] <= 4'd0;
         ksl_reg[0] <= 2'd0; ksl_reg[1] <= 2'd0;
@@ -172,16 +176,16 @@ begin
     end
     else begin if(!phi1ncen_n) begin
         if(datareg_wrrq) begin
-                 if(d1reg_addr[3:0] == 4'h0) {am_reg[0], pm_reg[0], etyp_reg[0], ksr_reg[0], mul_reg[0]} <= dbus_inlatch;
-            else if(d1reg_addr[3:0] == 4'h1) {am_reg[1], pm_reg[1], etyp_reg[1], ksr_reg[1], mul_reg[1]} <= dbus_inlatch;
-            else if(d1reg_addr[3:0] == 4'h2) {ksl_reg[0], tl_reg} <= dbus_inlatch;
-            else if(d1reg_addr[3:0] == 4'h3) {ksl_reg[0], dc_reg, dm_reg, fb_reg} <= {dbus_inlatch[7:6], dbus_inlatch[4:0]};
-            else if(d1reg_addr[3:0] == 4'h4) {ar_reg[0], dr_reg[0]} <= dbus_inlatch;
-            else if(d1reg_addr[3:0] == 4'h5) {ar_reg[1], dr_reg[1]} <= dbus_inlatch;
-            else if(d1reg_addr[3:0] == 4'h6) {sl_reg[0], rr_reg[0]} <= dbus_inlatch;
-            else if(d1reg_addr[3:0] == 4'h7) {sl_reg[1], rr_reg[1]} <= dbus_inlatch;
-            else if(d1reg_addr[3:0] == 4'hE) rhythm_reg <= dbus_inlatch[5:0];
-            else if(d1reg_addr[3:0] == 4'hF) {vrc7_en_reg, test_reg} <= dbus_inlatch[4:0];
+                 if(d1reg_addr == 8'h0) {am_reg[0], pm_reg[0], etyp_reg[0], ksr_reg[0], mul_reg[0]} <= dbus_inlatch;
+            else if(d1reg_addr == 8'h1) {am_reg[1], pm_reg[1], etyp_reg[1], ksr_reg[1], mul_reg[1]} <= dbus_inlatch;
+            else if(d1reg_addr == 8'h2) {ksl_reg[0], tl_reg} <= dbus_inlatch;
+            else if(d1reg_addr == 8'h3) {ksl_reg[0], dc_reg, dm_reg, fb_reg} <= {dbus_inlatch[7:6], dbus_inlatch[4:0]};
+            else if(d1reg_addr == 8'h4) {ar_reg[0], dr_reg[0]} <= dbus_inlatch;
+            else if(d1reg_addr == 8'h5) {ar_reg[1], dr_reg[1]} <= dbus_inlatch;
+            else if(d1reg_addr == 8'h6) {sl_reg[0], rr_reg[0]} <= dbus_inlatch;
+            else if(d1reg_addr == 8'h7) {sl_reg[1], rr_reg[1]} <= dbus_inlatch;
+            else if(d1reg_addr == 8'hE) rhythm_reg <= dbus_inlatch[5:0];
+            else if(d1reg_addr == 8'hF) {altpatch_en_reg, test_reg} <= dbus_inlatch[4:0];
         end
     end end
 end
@@ -199,7 +203,7 @@ always @(posedge emuclk) if(!phi1ncen_n) if(addrreg_wrrq && dbus_inlatch[7:6] ==
 //D9REG enable
 reg             d9reg_en;
 always @(posedge emuclk) begin
-    if(!i_IC_n) d9reg_en <= 1'b0;
+    if(!i_RST_n) d9reg_en <= 1'b0;
     else begin if(!phi1ncen_n) begin
         if(addrreg_wrrq) d9reg_en <= dbus_inlatch[7:6] == 2'b00;
     end end
@@ -208,7 +212,7 @@ end
 //latch D9REG data
 reg     [7:0]   d9reg_data;
 always @(posedge emuclk) begin
-    if(!i_IC_n) d9reg_data <= 8'h00;
+    if(!i_RST_n) d9reg_data <= 8'h00;
     else begin if(!phi1ncen_n) begin
         if(d9reg_en && datareg_wrrq) d9reg_data <= dbus_inlatch;
     end end
@@ -223,21 +227,21 @@ end
 
 //D9REG write data queued flag
 reg             d9reg_wrdata_queued_n; // = 1'b1;
-wire            trace_d9reg_addrcntr = ~|{~i_IC_n, addrreg_wrrq, d9reg_wrdata_queued_n};
+wire            trace_d9reg_addrcntr = ~|{~i_RST_n, addrreg_wrrq, d9reg_wrdata_queued_n};
 always @(posedge emuclk) if(!phi1ncen_n) begin
     d9reg_wrdata_queued_n <= ~(trace_d9reg_addrcntr | (d9reg_en && datareg_wrrq));
 end
 
 //address match signal
-wire            d9reg_addr_match = d9reg_addrcntr[4] & (d9reg_addrcntr[3:0] == d9reg_addr[3:0]) & trace_d9reg_addrcntr;
+wire            d9reg_addr_match = ~d9reg_addrcntr[4] & (d9reg_addrcntr[3:0] == d9reg_addr[3:0]) & trace_d9reg_addrcntr;
 
 //D9REG enable signals
-wire            reg10_18_en = (d9reg_addr[5:4] == 2'b01) & d9reg_addr_match & ~i_IC_n;
-wire            reg20_28_en = (d9reg_addr[5:4] == 2'b10) & d9reg_addr_match & ~i_IC_n;
-wire            reg30_38_en = (d9reg_addr[5:4] == 2'b11) & d9reg_addr_match & ~i_IC_n;
+wire            reg10_18_en = (d9reg_addr[5:4] == 2'b01) & d9reg_addr_match & i_RST_n;
+wire            reg20_28_en = (d9reg_addr[5:4] == 2'b10) & d9reg_addr_match & i_RST_n;
+wire            reg30_38_en = (d9reg_addr[5:4] == 2'b11) & d9reg_addr_match & i_RST_n;
 
 //D9REG
-wire            kon_reg, susen_reg;
+wire            kon_reg;
 wire    [3:0]   vol_reg, inst_reg;
 
 IKAOPLL_d9reg #(8) u_fnum_lsbs (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
@@ -253,7 +257,7 @@ IKAOPLL_d9reg #(1) u_kon       (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n),
                                 .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch[4]), .o_Q(kon_reg));
 
 IKAOPLL_d9reg #(1) u_susen     (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch[5]), .o_Q(susen_reg));
+                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch[5]), .o_Q(o_SUSEN));
 
 IKAOPLL_d9reg #(4) u_vol       (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
                                 .i_EN(reg30_38_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(dbus_inlatch[3:0]), .o_Q(vol_reg));
@@ -288,7 +292,7 @@ wire    [3:0]   sl_rom;
 wire    [3:0]   rr_rom;
 wire    [5:0]   tl_rom;
 wire            dc_rom, dm_rom;
-wire            fb_rom;
+wire    [2:0]   fb_rom;
 
 //ROM module
 IKAOPLL_instrom #(INSTROM_STYLE) u_instrom (
@@ -297,7 +301,7 @@ IKAOPLL_instrom #(INSTROM_STYLE) u_instrom (
     .i_phi1_PCEN_n              (phi1pcen_n                 ),
 
     //1 = use the optional VRC7 enable register, 0 = use value from off-chip
-    .i_VRC7_EN                  (ALTPATCH_CONFIG_MODE ? vrc7_en_reg : i_VRC7_EN),
+    .i_ALTPATCH_EN              (ALTPATCH_CONFIG_MODE ? altpatch_en_reg : i_ALTPATCH_EN),
 
     .i_INST_ADDR                (inst_reg                   ),
     .i_BD0_SEL(perc_proc_d), .i_HH_SEL(perc_proc[0]), .i_TT_SEL(perc_proc[1]), .i_BD1_SEL(perc_proc[2]), .i_SD_SEL(perc_proc[3]), .i_TC_SEL(perc_proc[4]), 
@@ -434,7 +438,7 @@ module IKAOPLL_rw_synchronizer #(parameter FULLY_SYNCHRONOUS = 1) (
     input   wire            i_phiM_PCEN_n,
     input   wire            i_phi1_NCEN_n,
 
-    input   wire            i_IC_n,
+    input   wire            i_RST_n,
 
     input   wire            i_IN,
     output  wire            o_OUT
@@ -445,13 +449,13 @@ if(FULLY_SYNCHRONOUS == 0) begin : FULLY_SYNCHRONOUS_0_busrq
 
 wire            busrq_latched;
 IKAOPLL_srlatch u_busrq_srlatch (
-    .i_S((i_IN & i_IC_n) & ~o_OUT), .i_R(o_OUT | ~i_IC_n), .o_Q(busrq_latched)
+    .i_S((i_IN & i_RST_n) & ~o_OUT), .i_R(o_OUT | ~i_RST_n), .o_Q(busrq_latched)
 );
 
 reg     [2:0]   inreg;
 assign          o_OUT = inreg[2];
 always @(posedge i_EMUCLK) begin
-    if(!i_IC_n) inreg <= 3'b000;
+    if(!i_RST_n) inreg <= 3'b000;
     else begin
         if(!i_phiM_PCEN_n) begin
             inreg[0] <= busrq_latched;
@@ -470,7 +474,7 @@ else begin : FULLY_SYNCHRONOUS_1_busrq
 reg     [2:0]   inreg;
 assign          o_OUT = inreg[2];
 always @(posedge i_EMUCLK) begin
-    if(!i_IC_n) inreg <= 3'b000;
+    if(!i_RST_n) inreg <= 3'b000;
     else begin
         if(!i_phiM_PCEN_n) begin
             case({o_OUT, i_IN})
@@ -528,7 +532,7 @@ module IKAOPLL_instrom #(parameter INSTROM_STYLE = 0) (
     input   wire            i_EMUCLK,
     input   wire            i_phi1_PCEN_n, //positive!
 
-    input   wire            i_VRC7_EN,
+    input   wire            i_ALTPATCH_EN,
     input   wire    [3:0]   i_INST_ADDR,
     input   wire            i_BD0_SEL, i_HH_SEL, i_TT_SEL, i_BD1_SEL, i_SD_SEL, i_TC_SEL,
     input   wire            i_MnC_SEL, //1=MOD 0=CAR
@@ -553,17 +557,17 @@ reg     [5:0]   mem_addr;
 always @(*) begin
     if(percussion_sel) begin
         case({i_BD0_SEL, i_HH_SEL, i_TT_SEL, i_BD1_SEL, i_SD_SEL, i_TC_SEL})
-            6'b100000: mem_addr = {i_VRC7_EN, 1'b1, 4'h0};
-            6'b010000: mem_addr = {i_VRC7_EN, 1'b1, 4'h1};
-            6'b001000: mem_addr = {i_VRC7_EN, 1'b1, 4'h2};
-            6'b000100: mem_addr = {i_VRC7_EN, 1'b1, 4'h3};
-            6'b000010: mem_addr = {i_VRC7_EN, 1'b1, 4'h4};
-            6'b000001: mem_addr = {i_VRC7_EN, 1'b1, 4'h5};
-            default:   mem_addr = {i_VRC7_EN, 1'b1, 4'hF};
+            6'b100000: mem_addr = {i_ALTPATCH_EN, 1'b1, 4'h0};
+            6'b010000: mem_addr = {i_ALTPATCH_EN, 1'b1, 4'h1};
+            6'b001000: mem_addr = {i_ALTPATCH_EN, 1'b1, 4'h2};
+            6'b000100: mem_addr = {i_ALTPATCH_EN, 1'b1, 4'h3};
+            6'b000010: mem_addr = {i_ALTPATCH_EN, 1'b1, 4'h4};
+            6'b000001: mem_addr = {i_ALTPATCH_EN, 1'b1, 4'h5};
+            default:   mem_addr = {i_ALTPATCH_EN, 1'b1, 4'hF};
         endcase
     end
     else begin
-        mem_addr = {i_VRC7_EN, 1'b0, i_INST_ADDR};
+        mem_addr = {i_ALTPATCH_EN, 1'b0, i_INST_ADDR};
     end
 end
 

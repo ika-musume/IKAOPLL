@@ -5,6 +5,7 @@ module IKAOPLL_timinggen #(parameter FULLY_SYNCHRONOUS = 1, parameter FAST_RESET
 
     //chip reset
     input   wire            i_IC_n,
+    output  wire            o_RST_n,
 
     //phiM/2
     output  wire            o_phi1_PCEN_n, //internal positive edge clock enable
@@ -51,6 +52,8 @@ if(FULLY_SYNCHRONOUS == 0) begin : FULLY_SYNCHRONOUS_0_reset_syncchain
     always @(posedge i_EMUCLK) if(!i_phiM_PCEN_n) begin
         ic_n_negedge <= ic_n_internal[0] & ~ic_n_internal[2];
     end
+
+    assign  o_RST_n = ic_n_internal[2];
 end
 else begin : FULLY_SYNCHRONOUS_1_reset_syncchain
     //add two stage SR
@@ -67,7 +70,8 @@ else begin : FULLY_SYNCHRONOUS_1_reset_syncchain
         ic_n_negedge <= ic_n_internal[2] & ~ic_n_internal[4];
     end
 
-    assign ic_n_zzzz = ic_n_internal[3];
+    assign  ic_n_zzzz = ic_n_internal[3];
+    assign  o_RST_n = ic_n_internal[4];
 end
 endgenerate
 
