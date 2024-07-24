@@ -1,10 +1,9 @@
 module IKAOPLL_pg #(parameter USE_PIPELINED_MULTIPLIER = 1) (
     //master clock
     input   wire            i_EMUCLK, //emulator master clock
-    input   wire            i_phiM_PCEN_n,
 
     //master reset
-    input   wire            i_IC_n,
+    input   wire            i_RST_n,
 
     //internal clock
     input   wire            i_phi1_PCEN_n, //positive edge clock enable for emulation
@@ -35,7 +34,6 @@ module IKAOPLL_pg #(parameter USE_PIPELINED_MULTIPLIER = 1) (
 ////
 
 wire            emuclk = i_EMUCLK;
-wire            phiMpcen_n = i_phiM_PCEN_n;
 wire            phi1pcen_n = i_phi1_PCEN_n;
 wire            phi1ncen_n = i_phi1_NCEN_n;
 
@@ -83,10 +81,13 @@ always @(*) begin
     endcase
 end
 
+//debug
+wire    [9:0]   debug_cyc1c_pmamt_full = {{7{cyc1c_pmamt_sign}}, cyc1c_pmamt_val} + cyc1c_pmamt_sign;
+
 //modulate phase by adding the modulation value
 wire    [10:0]  cyc1c_phase_modded_val = {cyc0r_fnum, 1'b0} + {{7{cyc1c_pmamt_sign}}, cyc1c_pmamt_val} + cyc1c_pmamt_sign;
-wire            cyc1c_phase_modded_sign = cyc1c_phase_modded_val[10] & ~cyc1c_pmamt_sign;
-wire    [10:0]  cyc1c_phase_modded = {cyc1c_phase_modded_sign, cyc1c_phase_modded_val[9:0]}; 
+wire            cyc1c_phase_modded_msb = cyc1c_phase_modded_val[10] & ~cyc1c_pmamt_sign;
+wire    [10:0]  cyc1c_phase_modded = {cyc1c_phase_modded_msb, cyc1c_phase_modded_val[9:0]}; 
 
 //do block shift(octave)
 reg     [13:0]  cyc1c_blockshifter0;
@@ -100,8 +101,8 @@ always @(*) begin
     endcase
 
     case(cyc0r_block[2])
-        1'b0: cyc1c_blockshifter1 = {cyc1c_blockshifter0, 3'b000};
-        1'b1: cyc1c_blockshifter1 = {4'b0000, cyc1c_blockshifter0[13:1]};
+        1'b0: cyc1c_blockshifter1 = {4'b0000, cyc1c_blockshifter0[13:1]};
+        1'b1: cyc1c_blockshifter1 = {cyc1c_blockshifter0, 3'b000};
     endcase
 end
 
@@ -110,10 +111,27 @@ reg     [3:0]   cyc1r_mul;
 reg     [16:0]  cyc1r_phase_shifted;
 reg     [18:0]  cyc1r_phase_prev;
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    cyc1r_mul <= cyc0r_mul;
+    case(cyc0r_mul)
+        4'h0: cyc1r_mul <= 4'd0;
+        4'h1: cyc1r_mul <= 4'd1;
+        4'h2: cyc1r_mul <= 4'd2;
+        4'h3: cyc1r_mul <= 4'd3;
+        4'h4: cyc1r_mul <= 4'd4;
+        4'h5: cyc1r_mul <= 4'd5;
+        4'h6: cyc1r_mul <= 4'd6;
+        4'h7: cyc1r_mul <= 4'd7;
+        4'h8: cyc1r_mul <= 4'd8;
+        4'h9: cyc1r_mul <= 4'd9;
+        4'hA: cyc1r_mul <= 4'd10;
+        4'hB: cyc1r_mul <= 4'd10;
+        4'hC: cyc1r_mul <= 4'd12;
+        4'hD: cyc1r_mul <= 4'd12;
+        4'hE: cyc1r_mul <= 4'd15;
+        4'hF: cyc1r_mul <= 4'd15;
+    endcase
     cyc1r_phase_shifted <= cyc1c_blockshifter1;
 
-    cyc1r_phase_prev <= ~(~i_PG_PHASE_RST | i_TEST[2]) ? cyc18r_phase_sr_out : 19'd0;
+    cyc1r_phase_prev <= ~(i_PG_PHASE_RST | i_TEST[2]) ? cyc18r_phase_sr_out : 19'd0;
 end
 
 
@@ -125,7 +143,10 @@ end
 reg     [20:0]  cyc2r_phase_multiplied; //use 19-bit only
 reg     [18:0]  cyc2r_phase_prev;
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    cyc2r_phase_multiplied <= cyc1r_phase_shifted * cyc1r_mul;
+    if(cyc1r_mul == 4'd0) cyc2r_phase_multiplied <= {5'b00000, cyc1r_phase_shifted[16:1]};
+    else begin
+        cyc2r_phase_multiplied <= cyc1r_phase_shifted * cyc1r_mul;
+    end
 
     cyc2r_phase_prev <= cyc1r_phase_prev;
 end
@@ -176,13 +197,33 @@ always @(*) begin
     endcase
 
     case(cyc0r_block[2])
-        1'b0: cyc1c_blockshifter1 = {cyc1c_blockshifter0, 3'b000};
-        1'b1: cyc1c_blockshifter1 = {4'b0000, cyc1c_blockshifter0[13:1]};
+        1'b0: cyc1c_blockshifter1 = {4'b0000, cyc1c_blockshifter0[13:1]};
+        1'b1: cyc1c_blockshifter1 = {cyc1c_blockshifter0, 3'b000};
     endcase
 end
 
 //apply MUL
-wire    [20:0]  cyc1c_phase_multiplied = cyc1c_blockshifter1 * cyc0r_mul;
+reg     [20:0]  cyc1c_phase_multiplied;
+always @(*) begin
+    case(cyc0r_mul)
+        4'h0: cyc1c_phase_multiplied = {5'b00000, cyc1c_blockshifter1[16:1]};
+        4'h1: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd1;
+        4'h2: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd2;
+        4'h3: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd3;
+        4'h4: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd4;
+        4'h5: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd5;
+        4'h6: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd6;
+        4'h7: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd7;
+        4'h8: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd8;
+        4'h9: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd9;
+        4'hA: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd10;
+        4'hB: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd10;
+        4'hC: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd12;
+        4'hD: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd12;
+        4'hE: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd15;
+        4'hF: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd15;
+    endcase
+end
 
 //previous phase
 wire    [18:0]  cyc1c_phase_prev;
@@ -225,8 +266,9 @@ endgenerate
 //////  Cycle 4-18: delay shift register
 ////
 
-IKAOPLL_sr #(.WIDTH(18), .LENGTH(15)) u_cyc4r_cyc18r_phase_sr
-(.i_EMUCLK(emuclk), .i_CEN_n(phi1ncen_n), .i_D(cyc3r_phase_current), .o_Q_LAST(cyc18r_phase_sr_out));
+IKAOPLL_sr #(.WIDTH(19), .LENGTH(15)) u_cyc4r_cyc18r_phase_sr
+(.i_EMUCLK(emuclk), .i_CEN_n(phi1ncen_n), .i_D(i_RST_n ? cyc3r_phase_current : 19'd0), .o_Q_LAST(cyc18r_phase_sr_out),
+ .o_Q_TAP0(), .o_Q_TAP1(), .o_Q_TAP2()); //reset input added
 
 
 
@@ -302,11 +344,46 @@ wire            noise_lfsr_zero = noise_lfsr == 23'd0;
 assign  noise_out = noise_lfsr[22];
 
 always @(posedge emuclk) begin
-    if(!i_IC_n) noise_lfsr <= 23'd0; //parallel reset added: the original design doesnt't have this
+    if(!i_RST_n) noise_lfsr <= 23'd0; //parallel reset added: the original design doesnt't have this
     else begin if(!phi1ncen_n) begin
         noise_lfsr[0] <= (noise_lfsr[22] ^ noise_lfsr[8]) | noise_lfsr_zero | i_TEST[1];
         noise_lfsr[22:1] <= noise_lfsr[21:0];
     end end
+end
+
+
+
+///////////////////////////////////////////////////////////
+//////  STATIC PHASE REGISTERS FOR DEBUGGING
+////
+
+reg     [4:0]   debug_cyccntr = 5'd0;
+reg     [9:0]   debug_phasereg_static[0:17];
+always @(posedge emuclk) if(!phi1ncen_n) begin
+    if(i_CYCLE_21) debug_cyccntr <= 5'd0;
+    else debug_cyccntr <= debug_cyccntr + 5'd1;
+
+    case(debug_cyccntr)
+        5'd0 : debug_phasereg_static[0]  <= o_OP_PHASE; //Ch.1 M
+        5'd3 : debug_phasereg_static[1]  <= o_OP_PHASE; //Ch.1 C
+        5'd1 : debug_phasereg_static[2]  <= o_OP_PHASE; //Ch.2 M
+        5'd4 : debug_phasereg_static[3]  <= o_OP_PHASE; //Ch.2 C
+        5'd2 : debug_phasereg_static[4]  <= o_OP_PHASE; //Ch.3 M
+        5'd5 : debug_phasereg_static[5]  <= o_OP_PHASE; //Ch.3 C
+        5'd6 : debug_phasereg_static[6]  <= o_OP_PHASE; //Ch.4 M
+        5'd9 : debug_phasereg_static[7]  <= o_OP_PHASE; //Ch.4 C
+        5'd7 : debug_phasereg_static[8]  <= o_OP_PHASE; //Ch.5 M
+        5'd10: debug_phasereg_static[9]  <= o_OP_PHASE; //Ch.5 C
+        5'd8 : debug_phasereg_static[10] <= o_OP_PHASE; //Ch.6 M
+        5'd11: debug_phasereg_static[11] <= o_OP_PHASE; //Ch.6 C
+        5'd12: debug_phasereg_static[12] <= o_OP_PHASE; //Ch.7 M | BD M
+        5'd15: debug_phasereg_static[13] <= o_OP_PHASE; //Ch.7 C | BD C
+        5'd13: debug_phasereg_static[14] <= o_OP_PHASE; //Ch.8 M | HH
+        5'd16: debug_phasereg_static[15] <= o_OP_PHASE; //Ch.8 C | SD
+        5'd14: debug_phasereg_static[16] <= o_OP_PHASE; //Ch.9 M | TT
+        5'd17: debug_phasereg_static[17] <= o_OP_PHASE; //Ch.9 C | TC
+        default: ;
+    endcase
 end
 
 endmodule

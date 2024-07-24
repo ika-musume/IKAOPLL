@@ -34,7 +34,8 @@ end
 IKAOPLL #(
     .FULLY_SYNCHRONOUS          (1                          ),
     .FAST_RESET                 (1                          ),
-    .ALTPATCH_CONFIG_MODE       (0                          )
+    .ALTPATCH_CONFIG_MODE       (0                          ),
+    .USE_PIPELINED_MULTIPLIER   (1                          )
 ) main (
     .i_XIN_EMUCLK               (EMUCLK                     ),
     .o_XOUT                     (                           ),
@@ -165,6 +166,23 @@ initial begin
     `AD IKAOPLL_write(1'b1, 8'h7C, phiMref, CS_n, WR_n, A0, DIN);
     `DD IKAOPLL_write(1'b0, 8'h38, phiMref, CS_n, WR_n, A0, DIN);
     `AD IKAOPLL_write(1'b1, 8'h8C, phiMref, CS_n, WR_n, A0, DIN);
+
+    //rhythm
+    `DD IKAOPLL_write(1'b0, 8'h16, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h20, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h17, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h50, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h18, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'hC0, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h26, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h05, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h27, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h05, phiMref, CS_n, WR_n, A0, DIN);
+    `DD IKAOPLL_write(1'b0, 8'h28, phiMref, CS_n, WR_n, A0, DIN);
+    `AD IKAOPLL_write(1'b1, 8'h01, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b0, 8'h0E, phiMref, CS_n, WR_n, A0, DIN);
+    #100 IKAOPLL_write(1'b1, 8'h3F, phiMref, CS_n, WR_n, A0, DIN);
+
 end
 
 endmodule

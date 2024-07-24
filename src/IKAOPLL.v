@@ -99,6 +99,7 @@ wire    [2:0]   pmval; //signed
 wire    [3:0]   amval;
 
 
+
 ///////////////////////////////////////////////////////////
 //////  TIMING GENERATOR
 ////
@@ -216,6 +217,37 @@ IKAOPLL_lfo u_LFO (
 
     .o_PMVAL                    (pmval                      ),
     .o_AMVAL                    (amval                      )
+);
+
+
+
+///////////////////////////////////////////////////////////
+//////  PG
+////
+
+IKAOPLL_pg #(.USE_PIPELINED_MULTIPLIER(USE_PIPELINED_MULTIPLIER)) u_PG (
+    .i_EMUCLK                   (emuclk                     ),
+
+    .i_RST_n                    (rst_n                      ),
+
+    .i_phi1_PCEN_n              (phi1pcen_n                 ),
+    .i_phi1_NCEN_n              (phi1ncen_n                 ),
+
+    .i_CYCLE_17                 (cycle_17                   ),
+    .i_CYCLE_20                 (cycle_20                   ),
+    .i_CYCLE_21                 (cycle_21                   ),
+
+    .i_TEST                     (test                       ),
+    .i_RHYTHM_EN                (rhythm_en                  ),
+    .i_FNUM                     (fnum                       ),
+    .i_BLOCK                    (block                      ),
+    .i_PM                       (pm                         ),
+    .i_PMVAL                    (pmval                      ),
+    .i_MUL                      (mul                        ),
+    
+    .i_PG_PHASE_RST             (1'b0                       ),
+
+    .o_OP_PHASE                 (                           )
 );
 
 
