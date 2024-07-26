@@ -94,10 +94,7 @@ wire            amval_addend_a; //feedback
 wire            amval_addend_b = ((amval_addend_src0 & amval_addend_en0) | (amval_addend_src1 & amval_addend_en0)) & amval_addend_en1;
 wire    [1:0]   sum = amval_addend_a + amval_addend_b + amval_addend_cin;
 
-always @(posedge emuclk) if(!phi1ncen_n) begin
-    if(!i_RST_n) amval_addend_co_z <= 1'b0;
-    else amval_addend_co_z <= sum[1];
-end
+always @(posedge emuclk) if(!phi1ncen_n) amval_addend_co_z <= sum[1] & i_RST_n;
 
 //TFF section
 wire            amval_sr_000_000_0XX;

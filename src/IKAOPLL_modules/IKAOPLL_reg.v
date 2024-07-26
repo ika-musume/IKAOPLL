@@ -179,7 +179,7 @@ begin
                  if(d1reg_addr == 8'h0) {am_reg[0], pm_reg[0], etyp_reg[0], ksr_reg[0], mul_reg[0]} <= dbus_inlatch;
             else if(d1reg_addr == 8'h1) {am_reg[1], pm_reg[1], etyp_reg[1], ksr_reg[1], mul_reg[1]} <= dbus_inlatch;
             else if(d1reg_addr == 8'h2) {ksl_reg[0], tl_reg} <= dbus_inlatch;
-            else if(d1reg_addr == 8'h3) {ksl_reg[0], dc_reg, dm_reg, fb_reg} <= {dbus_inlatch[7:6], dbus_inlatch[4:0]};
+            else if(d1reg_addr == 8'h3) {ksl_reg[1], dc_reg, dm_reg, fb_reg} <= {dbus_inlatch[7:6], dbus_inlatch[4:0]};
             else if(d1reg_addr == 8'h4) {ar_reg[0], dr_reg[0]} <= dbus_inlatch;
             else if(d1reg_addr == 8'h5) {ar_reg[1], dr_reg[1]} <= dbus_inlatch;
             else if(d1reg_addr == 8'h6) {sl_reg[0], rr_reg[0]} <= dbus_inlatch;

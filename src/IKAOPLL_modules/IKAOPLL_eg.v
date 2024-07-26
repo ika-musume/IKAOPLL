@@ -1,10 +1,9 @@
 module IKAOPLL_eg (
     //master clock
     input   wire            i_EMUCLK, //emulator master clock
-    input   wire            i_phiM_PCEN_n,
 
     //master reset
-    input   wire            i_IC_n,
+    input   wire            i_RST_n,
 
     //internal clock
     input   wire            i_phi1_PCEN_n, //positive edge clock enable for emulation
@@ -14,6 +13,7 @@ module IKAOPLL_eg (
     input   wire            i_CYCLE_00, i_CYCLE_21, i_MnC_SEL, i_HH_TT_SEL,
 
     //parameter input
+    input   wire    [3:0]   i_TEST,
     input   wire    [8:0]   i_FNUM,
     input   wire    [2:0]   i_BLOCK,
     input   wire            i_KON,
@@ -24,8 +24,7 @@ module IKAOPLL_eg (
     input   wire    [3:0]   i_AMVAL,
     input   wire            i_KSR,
     input   wire    [1:0]   i_KSL,
-    input   wire            i_AR, i_DR, i_RR, i_SL,
-    input   wire    [3:0]   i_TEST,
+    input   wire    [3:0]   i_AR, i_DR, i_RR, i_SL,
 
     //control input
     input   wire            i_EG_ENVCNTR_TEST_DATA,
@@ -42,7 +41,6 @@ module IKAOPLL_eg (
 ////
 
 wire            emuclk = i_EMUCLK;
-wire            phiMpcen_n = i_phiM_PCEN_n;
 wire            phi1pcen_n = i_phi1_PCEN_n;
 wire            phi1ncen_n = i_phi1_NCEN_n;
 
@@ -56,7 +54,7 @@ reg     [1:0]   eg_prescaler;
 reg             eg_prescaler_d0_z;
 wire            serial_val_latch = i_CYCLE_00 & eg_prescaler_d0_z;
 always @(posedge emuclk) begin
-    if(!i_IC_n) eg_prescaler <= 2'd0;
+    if(!i_RST_n) eg_prescaler <= 2'd0;
     else begin if(!phi1ncen_n) begin
         if(i_CYCLE_21) eg_prescaler <= eg_prescaler + 2'd1;
     end end
@@ -74,9 +72,9 @@ reg     [17:0]  envcntr_sr;
 reg             envcntr_adder_co_z;
 wire    [1:0]   envcntr_adder = ((envcntr_adder_co_z | i_CYCLE_00) & eg_prescaler == 2'd3) + envcntr_sr[0];
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    envcntr_adder_co_z <= envcntr_adder[1]; //save carry
+    envcntr_adder_co_z <= envcntr_adder[1] & i_RST_n; //save carry
 
-    envcntr_sr[17] <= envcntr_adder[0] & i_IC_n;
+    envcntr_sr[17] <= envcntr_adder[0] & i_RST_n;
     envcntr_sr[16] <= i_TEST[3] ? i_EG_ENVCNTR_TEST_DATA : envcntr_sr[17];
     envcntr_sr[15:0] <= envcntr_sr[16:1]; 
 end
@@ -84,19 +82,21 @@ end
 reg     [1:0]   envcntr;
 always @(posedge emuclk) if(!phi1pcen_n) if(serial_val_latch) envcntr <= envcntr_sr[1:0];
 
+reg     [16:0]  debug_envcntr;
+always @(posedge emuclk) if(!phi1pcen_n) if(serial_val_latch) debug_envcntr <= envcntr_sr[16:0];
 
 
 ///////////////////////////////////////////////////////////
 //////  Consecutive zero bit counter
 ////
 
-reg             ic_z;
+reg             rst_z;
 reg             det_one;
 reg     [16:0]  zb_sr;
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    ic_z <= ~i_IC_n;
+    rst_z <= ~i_RST_n;
 
-    det_one <= ~(~(i_CYCLE_00 | ic_z) & (envcntr_sr[17] | ~det_one));
+    det_one <= ~(~(i_CYCLE_00 | rst_z) & (envcntr_sr[17] | ~det_one));
 
     zb_sr[16] <= det_one & envcntr_sr[17];
     zb_sr[15:0] <= zb_sr[16:1];
@@ -120,7 +120,8 @@ end
 wire    [1:0]   cyc2c_next_envstat;
 wire    [1:0]   cyc17r_envstat, cyc19r_envstat;
 IKAOPLL_sr #(.WIDTH(2), .LENGTH(18), .TAP0(16)) u_cyc2r_cyc19r_envstatreg
-(.i_EMUCLK(i_EMUCLK), .i_CEN_n(i_phi1_NCEN_n), .i_D(cyc2c_next_envstat), .o_Q_TAP0(cyc17r_envstat), .o_Q_LAST(cyc19r_envstat));
+(.i_EMUCLK(i_EMUCLK), .i_CEN_n(i_phi1_NCEN_n), .i_D(cyc2c_next_envstat), .o_Q_TAP0(cyc17r_envstat), .o_Q_LAST(cyc19r_envstat),
+ .o_Q_TAP1(), .o_Q_TAP2());
 
 //attenuation level flags, declare here first
 wire            cyc2c_decay_end, cyc2c_attnlv_min, cyc18c_attnlv_quite; //min = minimum(zero), quite = human perception of loudness(-???dB)
@@ -156,16 +157,16 @@ end
 wire    [1:0]   envstat_masked = cyc17r_envstat & {2{~cyc18c_start_attack}};
 
 //make envelope status state machine transition conditions
-assign  cyc2c_next_envstat[1] = |{~i_IC_n,
+assign  cyc2c_next_envstat[1] = |{~i_RST_n,
                                   ~cyc19r_start_attack & ~cyc19r_kon,
                                   ~cyc19r_start_attack &  cyc19r_envstat == 2'd3,
                                   ~cyc19r_start_attack &  cyc19r_envstat == 2'd2,
-                                  ~cyc19r_start_attack &  cyc19r_envstat == 2'd3 &  cyc2c_decay_end};
+                                  ~cyc19r_start_attack &  cyc19r_envstat == 2'd1 &  cyc2c_decay_end};
 
-assign  cyc2c_next_envstat[0] = |{~i_IC_n,
+assign  cyc2c_next_envstat[0] = |{~i_RST_n,
                                   ~cyc19r_start_attack & ~cyc19r_kon,
                                   ~cyc19r_start_attack &  cyc19r_envstat == 2'd3,
-                                  ~cyc19r_start_attack &  cyc19r_envstat == 2'd3 & ~cyc2c_decay_end,
+                                  ~cyc19r_start_attack &  cyc19r_envstat == 2'd1 & ~cyc2c_decay_end,
                                   ~cyc19r_start_attack &  cyc19r_envstat == 2'd0 &  cyc2c_attnlv_min};
 
 
@@ -175,13 +176,13 @@ assign  cyc2c_next_envstat[0] = |{~i_IC_n,
 ////
 
 //latch the values
+wire    [1:0]   cyc0c_egparam_sel = {( i_KON & cyc17r_envstat == 2'd3 & ~cyc18c_attnlv_quite), (~i_KON & ~i_SUSEN & ~i_MnC_SEL & ~i_ETYP)};
 reg     [3:0]   cyc0r_egparam_muxed;
 reg     [3:0]   cyc0r_ksr_factor;
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    case({( i_KON & cyc17r_envstat == 2'd3 & ~cyc18c_attnlv_quite), 
-          (~i_KON & ~i_SUSEN & ~i_MnC_SEL & ~i_ETYP)})
+    case(cyc0c_egparam_sel)
         2'b10: cyc0r_egparam_muxed <= 4'd12; //DP rate, "damp" the previous envelope to start the new envelope
-        2'b01: cyc0r_egparam_muxed <= 4'd7;  //KON off, attenuating envelope, carrier, no
+        2'b01: cyc0r_egparam_muxed <= 4'd7;  //KON off, attenuating envelope, carrier
         2'b00: begin
             case(envstat_masked)
                 2'd0: cyc0r_egparam_muxed <= i_AR;
@@ -237,7 +238,7 @@ wire            cyc2c_slow_atten = (cyc2c_egparam_final == 4'd12 & cyc1r_egparam
 
 //activate attenuation: decrease volume linearly
 wire            cyc2c_attn_act = (~cyc19r_attnlv_quite & cyc19r_envstat[1]      & ~cyc19r_start_attack) |
-                                  (~cyc19r_attnlv_quite & cyc19r_envstat == 2'd1 & ~cyc19r_start_attack & cyc2c_decay_end);
+                                 (~cyc19r_attnlv_quite & cyc19r_envstat == 2'd1 & ~cyc19r_start_attack & ~cyc2c_decay_end);
 
 //select signals
 wire    [3:0]   cyc2c_attndelta_sel;
@@ -254,28 +255,26 @@ assign  cyc2c_attndelta_sel[2] = (cyc1r_egparam_saturated == 4'd13 &            
                                  (cyc1r_egparam_saturated == 4'd13 & cyc1r_eg_prescaler[0]      & ~cyc1r_envdeltaweight_intensity & cyc2c_attn_act) |
                                  (cyc2c_slow_atten                 & cyc1r_eg_prescaler == 2'd3                                   & cyc2c_attn_act);
                                  
-assign  cyc2c_attndelta_sel[3] = (cyc1r_egparam_saturated == 4'd14 & ~cyc1r_envdeltaweight_intensity) |
+assign  cyc2c_attndelta_sel[3] = (cyc1r_egparam_saturated == 4'd14 &  cyc1r_envdeltaweight_intensity) |
                                   cyc1r_egparam_saturated == 4'd15;
+
 
 //select attenuation delta(addend 0)
 wire            cyc2c_dec_attnlv = cyc19r_envstat == 2'd0 & cyc19r_kon & cyc1r_egparam_saturated != 4'd15 & ~cyc2c_attnlv_min;
 wire    [6:0]   cyc19r_attnlv;
-reg     [6:0]   cyc2c_attndelta;
-always @(*) begin
-    case(cyc2c_attndelta_sel)
-        4'b0001: cyc2c_attndelta = cyc2c_dec_attnlv ? {4'b1111, ~cyc19r_attnlv[6:4]} : 7'd0;
-        4'b0010: cyc2c_attndelta = cyc2c_dec_attnlv ? {3'b111, ~cyc19r_attnlv[6:3]} : 7'd0;
-        4'b0100: cyc2c_attndelta = cyc2c_dec_attnlv ? {2'b11, ~cyc19r_attnlv[6:3], cyc2c_attn_act ? 1'b1 : ~cyc19r_attnlv[2]} : 
-                                                      {6'b000000,                  cyc2c_attn_act ? 1'b1 : 1'b0};
-        4'b1000: cyc2c_attndelta = cyc2c_dec_attnlv ? {2'b1, ~cyc19r_attnlv[6:3],  cyc2c_attn_act ? 1'b1 : ~cyc19r_attnlv[2], ~cyc19r_attnlv[1]} : 
-                                                      {5'b00000,                   cyc2c_attn_act ? 1'b1 : 1'b0,              1'b0};
-        default: cyc2c_attndelta = 7'd0;
-    endcase
-end
+wire    [6:0]   cyc19r_attnlv_masked = cyc2c_dec_attnlv ? ~cyc19r_attnlv : 7'd0;
+
+//YM2413 used AOIs to simplify conditional selector, typical one-hot coded selector will not work
+wire    [6:0]   cyc2c_attndelta_in0 = cyc2c_attndelta_sel[0] ? {{4{cyc2c_dec_attnlv}}, cyc19r_attnlv_masked[6:4]} : 7'd0;
+wire    [6:0]   cyc2c_attndelta_in1 = cyc2c_attndelta_sel[1] ? {{3{cyc2c_dec_attnlv}}, cyc19r_attnlv_masked[6:3]} : 7'd0;
+wire    [6:0]   cyc2c_attndelta_in2 = cyc2c_attndelta_sel[2] ? {{2{cyc2c_dec_attnlv}}, cyc19r_attnlv_masked[6:3], cyc2c_attn_act | cyc19r_attnlv_masked[2]} : 7'd0;
+wire    [6:0]   cyc2c_attndelta_in3 = cyc2c_attndelta_sel[3] ? {{1{cyc2c_dec_attnlv}}, cyc19r_attnlv_masked[6:3], cyc2c_attn_act | cyc19r_attnlv_masked[2], cyc19r_attnlv_masked[1]} : 7'd0;
+wire    [6:0]   cyc2c_attndelta = cyc2c_attndelta_in0 | cyc2c_attndelta_in1 | cyc2c_attndelta_in2 | cyc2c_attndelta_in3;
+
 
 //control previous attenuation value(addend 1)
 wire            cyc2c_curr_attnlv_en = ~(cyc1r_egparam_saturated == 4'd15 & cyc19r_start_attack);
-wire            cyc2c_curr_attnlv_force_max = (cyc19r_attnlv_quite & |{cyc19r_envstat} & ~cyc19r_start_attack) | ~i_IC_n;
+wire            cyc2c_curr_attnlv_force_max = (cyc19r_attnlv_quite & |{cyc19r_envstat} & ~cyc19r_start_attack) | ~i_RST_n;
 wire    [6:0]   cyc2c_curr_attnlv = cyc2c_curr_attnlv_force_max ? 7'd127 :
                                                                   cyc2c_curr_attnlv_en ? cyc19r_attnlv : 7'd0;
 
@@ -284,7 +283,7 @@ wire    [6:0]   cyc2c_next_attnlv = cyc2c_curr_attnlv + cyc2c_attndelta; //disca
 
 //register part
 reg     [6:0]   cyc2r_attnlv;
-always @(posedge emuclk) if(!phi1ncen_n) cyc2r_attnlv <= cyc2c_next_attnlv;
+always @(posedge emuclk) if(!phi1ncen_n) cyc2r_attnlv <= i_RST_n ? cyc2c_next_attnlv : 7'd127;
 
 
 
@@ -295,10 +294,11 @@ always @(posedge emuclk) if(!phi1ncen_n) cyc2r_attnlv <= cyc2c_next_attnlv;
 //cycle 3 to 19
 wire    [6:0]   cyc17r_attnlv, cyc18r_attnlv;
 IKAOPLL_sr #(.WIDTH(7), .LENGTH(17), .TAP0(15), .TAP1(16)) u_cyc3r_cyc19r_attnlvreg
-(.i_EMUCLK(i_EMUCLK), .i_CEN_n(phi1ncen_n), .i_D(cyc2r_attnlv), .o_Q_TAP0(cyc17r_attnlv), .o_Q_TAP1(cyc18r_attnlv), .o_Q_LAST(cyc19r_attnlv));
+(.i_EMUCLK(i_EMUCLK), .i_CEN_n(phi1ncen_n), .i_D(cyc2r_attnlv), .o_Q_TAP0(cyc17r_attnlv), .o_Q_TAP1(cyc18r_attnlv), .o_Q_LAST(cyc19r_attnlv),
+ .o_Q_TAP2());
 
 //cycle 18
-assign  cyc18c_attnlv_quite = cyc17r_attnlv[6:2] == 5'd0;
+assign  cyc18c_attnlv_quite = cyc17r_attnlv[6:2] == 5'b11111;
 reg     [3:0]   cyc18r_sl;
 always @(posedge emuclk) if(!phi1ncen_n) cyc18r_sl <= i_SL;
 
@@ -309,7 +309,7 @@ always @(posedge emuclk) if(!phi1ncen_n) cyc19r_sl <= cyc18r_sl;
 //cycle 2
 assign  cyc2c_attnlv_min = cyc19r_attnlv == 7'd0;
 assign  o_OP_ATTNLV_MAX = cyc19r_attnlv == 7'd127;
-assign  cyc2c_decay_end = cyc19r_attnlv[6:2] == cyc19r_sl;
+assign  cyc2c_decay_end = cyc19r_attnlv[6:3] == cyc19r_sl;
 
 
 
@@ -387,6 +387,66 @@ reg     [6:0]   cyc19r_final_attnlv;
 always @(posedge emuclk) if(!phi1ncen_n) cyc19r_final_attnlv <= i_TEST[0] ? 7'd0 : cyc19c_attnlv_saturated;
 
 assign  o_OP_ATTNLV = cyc19r_final_attnlv;
+
+
+
+///////////////////////////////////////////////////////////
+//////  STATIC PHASE REGISTERS FOR DEBUGGING
+////
+
+reg     [4:0]   debug_cyccntr = 5'd0;
+reg     [6:0]   debug_envreg_static[0:17];
+reg     [1:0]   debug_envstat_static[0:17];
+reg     [1:0]   debug_cyc2r_next_envstat;
+always @(posedge emuclk) if(!phi1ncen_n) begin
+    if(i_CYCLE_21) debug_cyccntr <= 5'd0;
+    else debug_cyccntr <= debug_cyccntr + 5'd1;
+
+    case(debug_cyccntr)
+        5'd1 : debug_envreg_static[0]  <= ~o_OP_ATTNLV; //Ch.1 M
+        5'd4 : debug_envreg_static[1]  <= ~o_OP_ATTNLV; //Ch.1 C
+        5'd2 : debug_envreg_static[2]  <= ~o_OP_ATTNLV; //Ch.2 M
+        5'd5 : debug_envreg_static[3]  <= ~o_OP_ATTNLV; //Ch.2 C
+        5'd3 : debug_envreg_static[4]  <= ~o_OP_ATTNLV; //Ch.3 M
+        5'd6 : debug_envreg_static[5]  <= ~o_OP_ATTNLV; //Ch.3 C
+        5'd7 : debug_envreg_static[6]  <= ~o_OP_ATTNLV; //Ch.4 M
+        5'd10: debug_envreg_static[7]  <= ~o_OP_ATTNLV; //Ch.4 C
+        5'd8 : debug_envreg_static[8]  <= ~o_OP_ATTNLV; //Ch.5 M
+        5'd11: debug_envreg_static[9]  <= ~o_OP_ATTNLV; //Ch.5 C
+        5'd9 : debug_envreg_static[10] <= ~o_OP_ATTNLV; //Ch.6 M
+        5'd12: debug_envreg_static[11] <= ~o_OP_ATTNLV; //Ch.6 C
+        5'd13: debug_envreg_static[12] <= ~o_OP_ATTNLV; //Ch.7 M | BD M
+        5'd16: debug_envreg_static[13] <= ~o_OP_ATTNLV; //Ch.7 C | BD C
+        5'd14: debug_envreg_static[14] <= ~o_OP_ATTNLV; //Ch.8 M | HH
+        5'd17: debug_envreg_static[15] <= ~o_OP_ATTNLV; //Ch.8 C | SD
+        5'd15: debug_envreg_static[16] <= ~o_OP_ATTNLV; //Ch.9 M | TT
+        5'd0 : debug_envreg_static[17] <= ~o_OP_ATTNLV; //Ch.9 C | TC
+        default: ;
+    endcase
+
+    debug_cyc2r_next_envstat <= cyc2c_next_envstat;
+    case(debug_cyccntr)
+        5'd2 : debug_envstat_static[0]  <= debug_cyc2r_next_envstat; //Ch.1 M
+        5'd5 : debug_envstat_static[1]  <= debug_cyc2r_next_envstat; //Ch.1 C
+        5'd3 : debug_envstat_static[2]  <= debug_cyc2r_next_envstat; //Ch.2 M
+        5'd6 : debug_envstat_static[3]  <= debug_cyc2r_next_envstat; //Ch.2 C
+        5'd4 : debug_envstat_static[4]  <= debug_cyc2r_next_envstat; //Ch.3 M
+        5'd7 : debug_envstat_static[5]  <= debug_cyc2r_next_envstat; //Ch.3 C
+        5'd8 : debug_envstat_static[6]  <= debug_cyc2r_next_envstat; //Ch.4 M
+        5'd11: debug_envstat_static[7]  <= debug_cyc2r_next_envstat; //Ch.4 C
+        5'd9 : debug_envstat_static[8]  <= debug_cyc2r_next_envstat; //Ch.5 M
+        5'd12: debug_envstat_static[9]  <= debug_cyc2r_next_envstat; //Ch.5 C
+        5'd10: debug_envstat_static[10] <= debug_cyc2r_next_envstat; //Ch.6 M
+        5'd13: debug_envstat_static[11] <= debug_cyc2r_next_envstat; //Ch.6 C
+        5'd14: debug_envstat_static[12] <= debug_cyc2r_next_envstat; //Ch.7 M | BD M
+        5'd17: debug_envstat_static[13] <= debug_cyc2r_next_envstat; //Ch.7 C | BD C
+        5'd15: debug_envstat_static[14] <= debug_cyc2r_next_envstat; //Ch.8 M | HH
+        5'd0 : debug_envstat_static[15] <= debug_cyc2r_next_envstat; //Ch.8 C | SD
+        5'd16: debug_envstat_static[16] <= debug_cyc2r_next_envstat; //Ch.9 M | TT
+        5'd1 : debug_envstat_static[17] <= debug_cyc2r_next_envstat; //Ch.9 C | TC
+        default: ;
+    endcase
+end
 
 
 endmodule
