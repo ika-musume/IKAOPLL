@@ -1,10 +1,9 @@
-module IKAOPLL_eg (
+module IKAOPLL_op (
     //master clock
     input   wire            i_EMUCLK, //emulator master clock
-    input   wire            i_phiM_PCEN_n,
 
     //master reset
-    input   wire            i_IC_n,
+    input   wire            i_RST_n,
 
     //internal clock
     input   wire            i_phi1_PCEN_n, //positive edge clock enable for emulation
@@ -14,9 +13,9 @@ module IKAOPLL_eg (
     input   wire            i_CYCLE_00, i_CYCLE_21, i_HH_TT_SEL, i_INHIBIT_FDBK,
 
     //parameter input
+    input   wire    [3:0]   i_TEST,
     input   wire            i_DC, i_DM,
     input   wire    [2:0]   i_FB,
-    input   wire    [3:0]   i_TEST,
 
     //control input
     input   wire    [9:0]   i_OP_PHASE,
@@ -33,7 +32,6 @@ module IKAOPLL_eg (
 ////
 
 wire            emuclk = i_EMUCLK;
-wire            phiMpcen_n = i_phiM_PCEN_n;
 wire            phi1pcen_n = i_phi1_PCEN_n;
 wire            phi1ncen_n = i_phi1_NCEN_n;
 
@@ -192,13 +190,15 @@ wire    [11:0]  cyc21c_mod_z_tap9, cyc21c_mod_zz_tap9;
 wire    [12:0]  cyc21c_modsum = {cyc21c_mod_z_tap6[11], cyc21c_mod_z_tap6} + {cyc21c_mod_zz_tap6[11], cyc21c_mod_zz_tap6};
 
 //register part, modulator_z, zz sr
+wire    [11:0]  op_z_reg_d = i_RST_n ? (i_INHIBIT_FDBK ? cyc21c_intwave_flipped : cyc21c_mod_z_tap9) : 12'd0;
 IKAOPLL_sr #(.WIDTH(12), .LENGTH(9), .TAP0(6)) u_op_z_reg
-(.i_EMUCLK(i_EMUCLK), .i_CEN_n(phi1ncen_n), .i_D(i_INHIBIT_FDBK ? cyc21c_intwave_flipped : cyc21c_mod_z_tap9), 
- .o_Q_TAP0(cyc21c_mod_z_tap6), .o_Q_LAST(cyc21c_mod_z_tap9));
+(.i_EMUCLK(i_EMUCLK), .i_CEN_n(phi1ncen_n), .i_D(op_z_reg_d), .o_Q_TAP0(cyc21c_mod_z_tap6), .o_Q_LAST(cyc21c_mod_z_tap9),
+ .o_Q_TAP1(), .o_Q_TAP2());
 
+wire    [11:0]  op_zz_reg_d = i_RST_n ? (i_INHIBIT_FDBK ? cyc21c_mod_z_tap9 : cyc21c_mod_zz_tap9) : 12'd0;
 IKAOPLL_sr #(.WIDTH(12), .LENGTH(9), .TAP0(6)) u_op_zz_reg
-(.i_EMUCLK(i_EMUCLK), .i_CEN_n(phi1ncen_n), .i_D(i_INHIBIT_FDBK ? cyc21c_mod_z_tap9 : cyc21c_mod_zz_tap9),
- .o_Q_TAP0(cyc21c_mod_zz_tap6), .o_Q_LAST(cyc21c_mod_zz_tap9));
+(.i_EMUCLK(i_EMUCLK), .i_CEN_n(phi1ncen_n), .i_D(op_zz_reg_d), .o_Q_TAP0(cyc21c_mod_zz_tap6), .o_Q_LAST(cyc21c_mod_zz_tap9),
+ .o_Q_TAP1(), .o_Q_TAP2());
 
 reg     [8:0]   cyc21r_intwave;
 reg     [11:0]  cyc21r_modsum;
@@ -217,7 +217,7 @@ end
 ////
 
 always @(*) begin
-    case({~i_HH_TT_SEL, cyc21r_inhibit_fdbk})
+    case({i_HH_TT_SEL, cyc21r_inhibit_fdbk})
         2'b10: begin
             case(cyc18r_fb)
                 3'd1: cyc19c_op_fdbk = {{4{cyc21r_modsum[11]}}, cyc21r_modsum[11:6]}; 
@@ -234,6 +234,42 @@ always @(*) begin
         default: cyc19c_op_fdbk = 10'd0;
     endcase
 end
+
+
+
+///////////////////////////////////////////////////////////
+//////  STATIC OPWAVE REGISTERS FOR DEBUGGING
+////
+
+reg     [4:0]   debug_cyccntr = 5'd0;
+reg     [11:0]  debug_opwavereg_static[0:17];
+always @(posedge emuclk) if(!phi1ncen_n) begin
+    if(i_CYCLE_21) debug_cyccntr <= 5'd0;
+    else debug_cyccntr <= debug_cyccntr + 5'd1;
+
+    case(debug_cyccntr)
+        5'd2 : debug_opwavereg_static[0]  <= cyc21c_intwave_flipped; //Ch.1 M
+        5'd5 : debug_opwavereg_static[1]  <= cyc21c_intwave_flipped; //Ch.1 C
+        5'd3 : debug_opwavereg_static[2]  <= cyc21c_intwave_flipped; //Ch.2 M
+        5'd6 : debug_opwavereg_static[3]  <= cyc21c_intwave_flipped; //Ch.2 C
+        5'd4 : debug_opwavereg_static[4]  <= cyc21c_intwave_flipped; //Ch.3 M
+        5'd7 : debug_opwavereg_static[5]  <= cyc21c_intwave_flipped; //Ch.3 C
+        5'd8 : debug_opwavereg_static[6]  <= cyc21c_intwave_flipped; //Ch.4 M
+        5'd11: debug_opwavereg_static[7]  <= cyc21c_intwave_flipped; //Ch.4 C
+        5'd9 : debug_opwavereg_static[8]  <= cyc21c_intwave_flipped; //Ch.5 M
+        5'd12: debug_opwavereg_static[9]  <= cyc21c_intwave_flipped; //Ch.5 C
+        5'd10: debug_opwavereg_static[10] <= cyc21c_intwave_flipped; //Ch.6 M
+        5'd13: debug_opwavereg_static[11] <= cyc21c_intwave_flipped; //Ch.6 C
+        5'd14: debug_opwavereg_static[12] <= cyc21c_intwave_flipped; //Ch.7 M | BD M
+        5'd17: debug_opwavereg_static[13] <= cyc21c_intwave_flipped; //Ch.7 C | BD C
+        5'd15: debug_opwavereg_static[14] <= cyc21c_intwave_flipped; //Ch.8 M | HH
+        5'd0 : debug_opwavereg_static[15] <= cyc21c_intwave_flipped; //Ch.8 C | SD
+        5'd16: debug_opwavereg_static[16] <= cyc21c_intwave_flipped; //Ch.9 M | TT
+        5'd1 : debug_opwavereg_static[17] <= cyc21c_intwave_flipped; //Ch.9 C | TC
+        default: ;
+    endcase
+end
+
 
 endmodule
 

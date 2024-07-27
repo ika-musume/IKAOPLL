@@ -92,14 +92,19 @@ wire            am, pm, etyp, ksr;
 wire    [3:0]   mul;
 wire    [1:0]   ksl;
 wire    [3:0]   ar, dr, rr, sl;
-wire            envcntr_test_data;
+wire            eg_envcntr_test_data;
 
 //lfo
 wire    [2:0]   pmval; //signed
 wire    [3:0]   amval;
 
 //pg
-wire            phase_rst;
+wire            pg_phase_rst;
+
+//op
+wire    [9:0]   op_phase;
+wire    [6:0]   op_attnlv;
+wire            op_attnlv_max;
 
 
 
@@ -194,7 +199,7 @@ IKAOPLL_reg #(.FULLY_SYNCHRONOUS(FULLY_SYNCHRONOUS), .ALTPATCH_CONFIG_MODE(ALTPA
     .o_RR                       (rr                         ),
     .o_SL                       (sl                         ),
 
-    .o_EG_ENVCNTR_TEST_DATA     (envcntr_test_data          )
+    .o_EG_ENVCNTR_TEST_DATA     (eg_envcntr_test_data       )
 );
 
 
@@ -248,9 +253,9 @@ IKAOPLL_pg #(.USE_PIPELINED_MULTIPLIER(USE_PIPELINED_MULTIPLIER)) u_PG (
     .i_PMVAL                    (pmval                      ),
     .i_MUL                      (mul                        ),
     
-    .i_PG_PHASE_RST             (phase_rst                  ),
+    .i_PG_PHASE_RST             (pg_phase_rst               ),
 
-    .o_OP_PHASE                 (                           )
+    .o_OP_PHASE                 (op_phase                   )
 );
 
 
@@ -288,11 +293,46 @@ IKAOPLL_eg u_EG (
     .i_RR                       (rr                         ),
     .i_SL                       (sl                         ),
 
-    .i_EG_ENVCNTR_TEST_DATA     (envcntr_test_data          ),
+    .i_EG_ENVCNTR_TEST_DATA     (eg_envcntr_test_data       ),
 
-    .o_PG_PHASE_RST             (phase_rst                  ),
-    .o_OP_ATTNLV                (                           ),
-    .o_OP_ATTNLV_MAX            (                           )
+    .o_PG_PHASE_RST             (pg_phase_rst               ),
+    .o_OP_ATTNLV                (op_attnlv                  ),
+    .o_OP_ATTNLV_MAX            (op_attnlv_max              )
 );
+
+
+
+///////////////////////////////////////////////////////////
+//////  OP
+////
+
+IKAOPLL_op u_OP (
+    .i_EMUCLK                   (emuclk                     ),
+
+    .i_RST_n                    (rst_n                      ),
+
+    .i_phi1_PCEN_n              (phi1pcen_n                 ),
+    .i_phi1_NCEN_n              (phi1ncen_n                 ),
+
+    .i_CYCLE_00                 (cycle_00                   ),
+    .i_CYCLE_21                 (cycle_21                   ),
+    .i_HH_TT_SEL                (hh_tt_sel                  ),
+    .i_INHIBIT_FDBK             (inhibit_fdbk               ),
+
+    .i_TEST                     (test                       ),
+    .i_DC                       (dc                         ),
+    .i_DM                       (dm                         ),
+    .i_FB                       (fb                         ),
+
+    .i_OP_PHASE                 (op_phase                   ),
+    .i_OP_ATTNLV                (op_attnlv                  ),
+    .i_OP_ATTNLV_MAX            (op_attnlv_max              ),
+
+    .o_DAC_OPDATA               (                           )
+);
+
+
+
+
 
 endmodule 

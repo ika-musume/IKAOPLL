@@ -391,7 +391,7 @@ assign  o_OP_ATTNLV = cyc19r_final_attnlv;
 
 
 ///////////////////////////////////////////////////////////
-//////  STATIC PHASE REGISTERS FOR DEBUGGING
+//////  STATIC ENVELOPE REGISTERS FOR DEBUGGING
 ////
 
 reg     [4:0]   debug_cyccntr = 5'd0;
