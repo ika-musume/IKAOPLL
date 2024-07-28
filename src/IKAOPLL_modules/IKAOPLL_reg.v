@@ -248,25 +248,25 @@ wire            kon_reg;
 wire    [3:0]   vol_reg, inst_reg;
 
 IKAOPLL_d9reg #(8) u_fnum_lsbs (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg10_18_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? dbus_inlatch : 8'd0), .o_Q(o_FNUM[7:0]));
+                                .i_EN(reg10_18_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data : 8'd0), .o_Q(o_FNUM[7:0]));
 
 IKAOPLL_d9reg #(1) u_fnum_msb  (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? dbus_inlatch[0]: 1'b0), .o_Q(o_FNUM[8]));
+                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[0]: 1'b0), .o_Q(o_FNUM[8]));
 
 IKAOPLL_d9reg #(3) u_block     (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? dbus_inlatch[3:1] : 3'd0), .o_Q(o_BLOCK));
+                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[3:1] : 3'd0), .o_Q(o_BLOCK));
 
 IKAOPLL_d9reg #(1) u_kon       (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? dbus_inlatch[4] : 1'b0), .o_Q(kon_reg));
+                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[4] : 1'b0), .o_Q(kon_reg));
 
 IKAOPLL_d9reg #(1) u_susen     (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? dbus_inlatch[5] : 1'b0), .o_Q(o_SUSEN));
+                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[5] : 1'b0), .o_Q(o_SUSEN));
 
 IKAOPLL_d9reg #(4) u_vol       (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg30_38_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? dbus_inlatch[3:0] : 4'd0), .o_Q(vol_reg));
+                                .i_EN(reg30_38_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[3:0] : 4'd0), .o_Q(vol_reg));
 
 IKAOPLL_d9reg #(4) u_inst      (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg30_38_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? dbus_inlatch[7:4] : 4'd0), .o_Q(inst_reg));
+                                .i_EN(reg30_38_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[7:4] : 4'd0), .o_Q(inst_reg));
 
 
 
@@ -323,6 +323,7 @@ IKAOPLL_instrom #(INSTROM_STYLE) u_instrom (
 ////
 
 always @(*) begin
+    /*
     case({perc_proc_d, perc_proc[0], perc_proc[1], perc_proc[2], perc_proc[3], perc_proc[4]})
         6'b100000: o_KON = rhythm_reg[4] | kon_reg;
         6'b010000: o_KON = rhythm_reg[0] | kon_reg;
@@ -332,6 +333,15 @@ always @(*) begin
         6'b000001: o_KON = rhythm_reg[1] | kon_reg;
         default:   o_KON = kon_reg;
     endcase
+    */
+
+    o_KON = (rhythm_reg[4] & perc_proc_d) |
+            (rhythm_reg[0] & perc_proc[0]) |
+            (rhythm_reg[2] & perc_proc[1]) |
+            (rhythm_reg[4] & perc_proc[2]) |
+            (rhythm_reg[3] & perc_proc[3]) | 
+            (rhythm_reg[1] & perc_proc[4]) | 
+            kon_reg;
 end
 
 
@@ -438,7 +448,7 @@ end
 //////  Test data serializer
 ////
 
-reg     [15:0]  d0_testreg;
+reg     [16:0]  d0_testreg;
 reg     [8:0]   d1_testreg;
 assign  o_D[0] = d0_testreg[0];
 assign  o_D[1] = d1_testreg[8];

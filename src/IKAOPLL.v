@@ -353,11 +353,9 @@ IKAOPLL_op u_OP (
 
 IKAOPLL_dac u_DAC (
     .i_EMUCLK                   (emuclk                     ),
-    .i_phiM_PCEN_n              (i_phiM_PCEN_n              ),
 
     .i_RST_n                    (rst_n                      ),
 
-    .i_phi1_PCEN_n              (phi1pcen_n                 ),
     .i_phi1_NCEN_n              (phi1ncen_n                 ),
 
     .i_DAC_EN                   (dac_en                     ),

@@ -1,12 +1,10 @@
 module IKAOPLL_dac (
     //master clock
     input   wire            i_EMUCLK, //emulator master clock
-    input   wire            i_phiM_PCEN_n,
 
     input   wire            i_RST_n,
 
     //internal clock
-    input   wire            i_phi1_PCEN_n, //positive edge clock enable for emulation
     input   wire            i_phi1_NCEN_n, //negative edge clock enable for emulation
 
     //timings
@@ -17,7 +15,7 @@ module IKAOPLL_dac (
 
     //io
     output  wire    [8:0]   o_REG_TEST_SNDDATA,
-    output  wire    [8:0]   i_DAC_OPDATA,
+    input   wire    [8:0]   i_DAC_OPDATA,
 
     //DAC enables
     output  wire                o_DAC_EN_MO,
@@ -25,7 +23,7 @@ module IKAOPLL_dac (
 
     //sign+magnitude output with no zero-level fluctuation
     output  wire                o_IMP_NOFLUC_SIGN,
-    output  wire signed [8:0]   o_IMP_NOFLUC_MAG,
+    output  wire signed [7:0]   o_IMP_NOFLUC_MAG,
 
     //signed output with zero-level fluctuation
     output  wire signed [8:0]   o_IMP_FLUC_SIGNED_MO,    
@@ -65,8 +63,6 @@ module IKAOPLL_dac (
 ////
 
 wire            emuclk = i_EMUCLK;
-wire            phiMpcen_n = i_phiM_PCEN_n;
-wire            phi1pcen_n = i_phi1_PCEN_n;
 wire            phi1ncen_n = i_phi1_NCEN_n;
 
 
@@ -114,7 +110,7 @@ assign  o_IMP_NOFLUC_MAG = snddata_signmag[7:0];
 
 //dac
 wire signed [8:0]   dac_out = snddata_signmag[8] ? {1'b1, ~snddata_signmag[7:0]} : {1'b0, snddata_signmag[7:0]};
-wire signed [8:0]   dac_zlv = snddata_signmag[8] ? 10'h3FF : 10'h1; //zero level
+wire signed [8:0]   dac_zlv = snddata_signmag[8] ? 9'h1FF : 9'h1; //zero level
 assign  o_IMP_FLUC_SIGNED_MO = fm_dac_en   ? dac_out : dac_zlv;
 assign  o_IMP_FLUC_SIGNED_RO = perc_dac_en ? dac_out : dac_zlv;
 
