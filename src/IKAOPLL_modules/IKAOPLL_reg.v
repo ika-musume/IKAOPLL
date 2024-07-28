@@ -23,7 +23,7 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter ALTPATCH_CONFIG_
     input   wire            i_ALTPATCH_EN,
 
     //timings
-    input   wire            i_CYCLE_12, i_CYCLE_21, i_CYCLE_D3_ZZ, i_CYCLE_D4_ZZ, i_MnC_SEL,
+    input   wire            i_CYCLE_00, i_CYCLE_12, i_CYCLE_21, i_CYCLE_D3_ZZ, i_CYCLE_D4_ZZ, i_MnC_SEL,
 
     //ROM outputs
     output  wire    [3:0]   o_TEST,
@@ -42,7 +42,10 @@ module IKAOPLL_reg #(parameter FULLY_SYNCHRONOUS = 1, parameter ALTPATCH_CONFIG_
     output  reg     [3:0]   o_SL,
 
     //misc
-    output  wire            o_EG_ENVCNTR_TEST_DATA
+    output  wire            o_EG_ENVCNTR_TEST_DATA,
+    input   wire    [9:0]   i_REG_TEST_PHASE,
+    input   wire    [6:0]   i_REG_TEST_ATTNLV,
+    input   wire    [8:0]   i_REG_TEST_SNDDATA
 );
 
 
@@ -145,7 +148,7 @@ reg     [3:0]   rr_reg[0:1];
 //D1REG single
 reg     [5:0]   tl_reg;
 reg             dc_reg, dm_reg;
-reg             fb_reg;
+reg     [2:0]   fb_reg;
 reg     [3:0]   test_reg;
 reg     [5:0]   rhythm_reg;
 reg             altpatch_en_reg;
@@ -428,6 +431,25 @@ always @(*) begin
         end
     endcase
 end
+
+
+
+///////////////////////////////////////////////////////////
+//////  Test data serializer
+////
+
+reg     [15:0]  d0_testreg;
+reg     [8:0]   d1_testreg;
+assign  o_D[0] = d0_testreg[0];
+assign  o_D[1] = d1_testreg[8];
+always @(posedge emuclk) if(!phi1ncen_n) begin
+    if(i_CYCLE_00) d0_testreg <= {i_REG_TEST_ATTNLV, i_REG_TEST_PHASE};
+    else d0_testreg <= d0_testreg >> 1;
+
+    if(i_CYCLE_00) d1_testreg <= i_REG_TEST_SNDDATA;
+    else d1_testreg <= d1_testreg << 1;
+end
+ 
 
 
 endmodule
