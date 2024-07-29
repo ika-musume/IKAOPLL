@@ -5,6 +5,8 @@ YM2413 Verilog core for FPGA implementation. It was reverse-engineered with only
 
 Copyrighted work. Permitted to be used as the header image. Painted by [SEONGSU](https://twitter.com/seongsu_twit).
 
+日本語版READMEは[こちら]("./README_ja.md")
+
 ## Features
 * A **cycle-accurate, die shot based, BSD2 licensed** core.
 * Accurately emulates most signals of the actual chip.
@@ -48,6 +50,8 @@ IKAOPLL #(
     .o_IMP_NOFLUC_MAG           (                           ),
     .o_IMP_FLUC_SIGNED_MO       (                           ),
     .o_IMP_FLUC_SIGNED_RO       (                           ),
+    .i_ACC_SIGNED_MOVOL         (4'd3                       ),
+    .i_ACC_SIGNED_ROVOL         (4'd2                       ),
     .o_ACC_SIGNED_STRB          (                           ),
     .o_ACC_SIGNED               (                           )
 );
@@ -71,5 +75,5 @@ IKAOPLL #(
 * `IMP_NOFLUC_SIGN` used to toggle the Vref source select switch of the string DAC on the original chip.
 * `o_IMP_NOFLUC_MAG` used to enable a tap switch of string DAC on the original chip, which have a total of 256 taps.
 * `o_IMP_FLUC_SIGNED_MO` and `o_IMP_FLUC_SIGNED_MO` are the 9-bit digital outputs of the final sound. Emulates zero-level fluctuation caused by flaws in the original DAC design.
-* `o_ACC_SIGNED_STRB` is the strobe signal for the 13-bit accumulated digital output. You can sample data using an external DFFs on the positive edge of this strobe. The duty cycle is 50% fixed.
-* (WIP) `o_ACC_SIGNED` provides 13-bit accumulated digital output. The original DAC outputs the percussion impulses twice, so the percussion sound is doubled and then accumulated.
+* `o_ACC_SIGNED_STRB` is the strobe signal for the 16-bit accumulated digital output. You can sample data using an external DFFs on the positive edge of this strobe. The duty cycle is 50% fixed.
+* `o_ACC_SIGNED` provides 16-bit accumulated digital output. The original DAC outputs the percussion impulses twice, so you can adjust the volume of each channel by providing a 4-bit scaling factor. The default values are 3 for the synth, and 2 for the percussion.

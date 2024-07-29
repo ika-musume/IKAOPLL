@@ -42,8 +42,10 @@ module IKAOPLL #(
     output  wire signed [8:0]   o_IMP_FLUC_SIGNED_RO,
 
     //"accumulated" output
+    input   wire        [3:0]   i_ACC_SIGNED_MOVOL,
+    input   wire        [3:0]   i_ACC_SIGNED_ROVOL,
     output  wire                o_ACC_SIGNED_STRB,
-    output  wire signed [12:0]  o_ACC_SIGNED
+    output  wire signed [15:0]  o_ACC_SIGNED
 );
 
 
@@ -375,6 +377,8 @@ IKAOPLL_dac u_DAC (
     .o_IMP_NOFLUC_MAG           (o_IMP_NOFLUC_MAG           ),
     .o_IMP_FLUC_SIGNED_MO       (o_IMP_FLUC_SIGNED_MO       ),
     .o_IMP_FLUC_SIGNED_RO       (o_IMP_FLUC_SIGNED_RO       ),
+    .i_ACC_SIGNED_MOVOL         (i_ACC_SIGNED_MOVOL         ),
+    .i_ACC_SIGNED_ROVOL         (i_ACC_SIGNED_ROVOL         ),
     .o_ACC_SIGNED_STRB          (o_ACC_SIGNED_STRB          ),
     .o_ACC_SIGNED               (o_ACC_SIGNED               )
 );
