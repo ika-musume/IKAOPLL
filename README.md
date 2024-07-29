@@ -5,7 +5,7 @@ YM2413 Verilog core for FPGA implementation. It was reverse-engineered with only
 
 Copyrighted work. Permitted to be used as the header image. Painted by [SEONGSU](https://twitter.com/seongsu_twit).
 
-日本語版READMEは[こちら]("./README_ja.md")
+日本語版READMEは[こちら](README_ja.md)
 
 ## Features
 * A **cycle-accurate, die shot based, BSD2 licensed** core.
