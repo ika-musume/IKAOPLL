@@ -35,7 +35,7 @@ module IKAOPLL #(
 
     //sign+magnitude output with no zero-level fluctuation
     output  wire                o_IMP_NOFLUC_SIGN,
-    output  wire signed [7:0]   o_IMP_NOFLUC_MAG,
+    output  wire        [7:0]   o_IMP_NOFLUC_MAG,
 
     //signed output with zero-level fluctuation
     output  wire signed [8:0]   o_IMP_FLUC_SIGNED_MO,    
