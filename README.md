@@ -50,8 +50,8 @@ IKAOPLL #(
     .o_IMP_NOFLUC_MAG           (                           ),
     .o_IMP_FLUC_SIGNED_MO       (                           ),
     .o_IMP_FLUC_SIGNED_RO       (                           ),
-    .i_ACC_SIGNED_MOVOL         (4'd2                       ),
-    .i_ACC_SIGNED_ROVOL         (4'd3                       ),
+    .i_ACC_SIGNED_MOVOL         (5'sd2                      ),
+    .i_ACC_SIGNED_ROVOL         (5'sd3                      ),
     .o_ACC_SIGNED_STRB          (                           ),
     .o_ACC_SIGNED               (                           )
 );
@@ -74,6 +74,6 @@ IKAOPLL #(
 * `o_DAC_EN_MO` and `o_DAC_EN_RO` are used to enable the DAC output on the original chip. 
 * `IMP_NOFLUC_SIGN` used to toggle the Vref source select switch of the string DAC on the original chip.
 * `o_IMP_NOFLUC_MAG` used to enable a tap switch of string DAC on the original chip, which have a total of 256 taps.
-* `o_IMP_FLUC_SIGNED_MO` and `o_IMP_FLUC_SIGNED_MO` are the 9-bit digital outputs of the final sound. Emulates zero-level fluctuation caused by flaws in the original DAC design.
+* `o_IMP_FLUC_SIGNED_MO` and `o_IMP_FLUC_SIGNED_RO` are the 9-bit digital outputs of the final sound. Emulates zero-level fluctuation caused by flaws in the original DAC design.
 * `o_ACC_SIGNED_STRB` is the strobe signal for the 16-bit accumulated digital output. You can sample data using an external DFFs on the positive edge of this strobe. The duty cycle is 50% fixed.
-* `o_ACC_SIGNED` provides 16-bit accumulated digital output. The original DAC outputs the percussion impulses twice, so you can adjust the volume of each channel by providing an unsigned 4-bit scaling factor. The default values are 2 for the synth, and 3 for the percussion.
+* `o_ACC_SIGNED` provides 16-bit accumulated digital output. The original DAC outputs the percussion impulses twice, so you can adjust the volume of each channel by providing an signed 5-bit scaling factor. The default values are +2 for the synth, and +3 for the percussion.

@@ -42,8 +42,8 @@ module IKAOPLL #(
     output  wire signed [8:0]   o_IMP_FLUC_SIGNED_RO,
 
     //"accumulated" output
-    input   wire        [3:0]   i_ACC_SIGNED_MOVOL,
-    input   wire        [3:0]   i_ACC_SIGNED_ROVOL,
+    input   wire signed [4:0]   i_ACC_SIGNED_MOVOL,
+    input   wire signed [4:0]   i_ACC_SIGNED_ROVOL,
     output  wire                o_ACC_SIGNED_STRB,
     output  wire signed [15:0]  o_ACC_SIGNED
 );
