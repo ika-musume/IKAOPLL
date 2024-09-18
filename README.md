@@ -12,6 +12,7 @@ Copyrighted work. Permitted to be used as the header image. Painted by [SEONGSU]
 * Accurately emulates most signals of the actual chip.
 * Three digital outputs available.
 * All LSI test bits are implemented.
+* Easy-to-use, **built-in 16-bit accumulated output and mixer**, eliminating the need of external LPF.
 
 ## Module instantiation
 The steps below show how to instantiate the IKAOPLL module in Verilog:
