@@ -124,7 +124,7 @@ assign  o_IMP_FLUC_SIGNED_RO = perc_dac_en ? dac_out : dac_zlv;
 
 reg         [2:0]   cyc0_dly;
 reg                 dac_acc_en;
-reg signed  [15:0]  dac_acc;
+reg signed  [16:0]  dac_acc;
 always @(posedge emuclk) if(!phi1ncen_n) begin
     cyc0_dly[0] <= i_CYCLE_00;
     cyc0_dly[2:1] <= cyc0_dly[1:0];
@@ -132,8 +132,11 @@ always @(posedge emuclk) if(!phi1ncen_n) begin
     dac_acc_en <= ~i_INHIBIT_FDBK;
     
     if(cyc0_dly[2]) begin
-        dac_acc <= 16'sd0;
-        o_ACC_SIGNED <= dac_acc;
+        dac_acc <= 17'sd0;
+
+             if(dac_acc >  17'sd32767) o_ACC_SIGNED <= 16'sd32767;
+        else if(dac_acc < -17'sd32768) o_ACC_SIGNED <= -16'sd32768;
+        else o_ACC_SIGNED <= dac_acc;
     end
     else begin if(dac_acc_en) begin
         if(ro_ctrl_z) dac_acc <= dac_acc + ($signed(snddata_signmag[8] ? {1'b1, ~snddata_signmag[7:0]} : {1'b0, snddata_signmag[7:0]}) * i_ACC_SIGNED_ROVOL);
@@ -149,6 +152,5 @@ always @(posedge emuclk) if(!phi1ncen_n) begin
     if(dac_acc_outcyc == 5'd1) o_ACC_SIGNED_STRB <= 1'b1;
     else if(dac_acc_outcyc == 5'd10) o_ACC_SIGNED_STRB <= 1'b0;
 end
-
 
 endmodule
