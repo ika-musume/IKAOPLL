@@ -136,7 +136,7 @@ always @(posedge emuclk) if(!phi1ncen_n) begin
 
              if(dac_acc >  17'sd32767) o_ACC_SIGNED <= 16'sd32767;
         else if(dac_acc < -17'sd32768) o_ACC_SIGNED <= -16'sd32768;
-        else o_ACC_SIGNED <= dac_acc;
+        else o_ACC_SIGNED <= dac_acc[15:0];
     end
     else begin if(dac_acc_en) begin
         if(ro_ctrl_z) dac_acc <= dac_acc + ($signed(snddata_signmag[8] ? {1'b1, ~snddata_signmag[7:0]} : {1'b0, snddata_signmag[7:0]}) * i_ACC_SIGNED_ROVOL);
