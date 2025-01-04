@@ -85,19 +85,19 @@ end
 wire    [9:0]   debug_cyc1c_pmamt_full = {{7{cyc1c_pmamt_sign}}, cyc1c_pmamt_val} + cyc1c_pmamt_sign;
 
 //modulate phase by adding the modulation value
-wire    [10:0]  cyc1c_phase_modded_val = {cyc0r_fnum, 1'b0} + {{7{cyc1c_pmamt_sign}}, cyc1c_pmamt_val} + cyc1c_pmamt_sign;
-wire            cyc1c_phase_modded_msb = cyc1c_phase_modded_val[10] & ~cyc1c_pmamt_sign;
-wire    [10:0]  cyc1c_phase_modded = {cyc1c_phase_modded_msb, cyc1c_phase_modded_val[9:0]}; 
+wire    [10:0]  cyc1c_pdelta_modded_val = {cyc0r_fnum, 1'b0} + {{7{cyc1c_pmamt_sign}}, cyc1c_pmamt_val} + cyc1c_pmamt_sign;
+wire            cyc1c_pdelta_modded_msb = cyc1c_pdelta_modded_val[10] & ~cyc1c_pmamt_sign;
+wire    [10:0]  cyc1c_pdelta_modded = {cyc1c_pdelta_modded_msb, cyc1c_pdelta_modded_val[9:0]}; 
 
 //do block shift(octave)
 reg     [13:0]  cyc1c_blockshifter0;
 reg     [16:0]  cyc1c_blockshifter1;
 always @(*) begin
     case(cyc0r_block[1:0])
-        2'b00: cyc1c_blockshifter0 = {3'b000, cyc1c_phase_modded};
-        2'b01: cyc1c_blockshifter0 = {2'b00, cyc1c_phase_modded, 1'b0};
-        2'b10: cyc1c_blockshifter0 = {1'b0, cyc1c_phase_modded, 2'b00};
-        2'b11: cyc1c_blockshifter0 = {cyc1c_phase_modded, 3'b000};
+        2'b00: cyc1c_blockshifter0 = {3'b000, cyc1c_pdelta_modded};
+        2'b01: cyc1c_blockshifter0 = {2'b00, cyc1c_pdelta_modded, 1'b0};
+        2'b10: cyc1c_blockshifter0 = {1'b0, cyc1c_pdelta_modded, 2'b00};
+        2'b11: cyc1c_blockshifter0 = {cyc1c_pdelta_modded, 3'b000};
     endcase
 
     case(cyc0r_block[2])
@@ -108,7 +108,7 @@ end
 
 //register part
 reg     [3:0]   cyc1r_mul;
-reg     [16:0]  cyc1r_phase_shifted;
+reg     [16:0]  cyc1r_pdelta_shifted;
 reg     [18:0]  cyc1r_phase_prev;
 always @(posedge emuclk) if(!phi1ncen_n) begin
     case(cyc0r_mul)
@@ -129,7 +129,7 @@ always @(posedge emuclk) if(!phi1ncen_n) begin
         4'hE: cyc1r_mul <= 4'd15;
         4'hF: cyc1r_mul <= 4'd15;
     endcase
-    cyc1r_phase_shifted <= cyc1c_blockshifter1;
+    cyc1r_pdelta_shifted <= cyc1c_blockshifter1;
 
     cyc1r_phase_prev <= ~(i_PG_PHASE_RST | i_TEST[2]) ? cyc18r_phase_sr_out : 19'd0;
 end
@@ -140,12 +140,12 @@ end
 //////  Cycle 2: Apply MUL
 ////
 
-reg     [20:0]  cyc2r_phase_multiplied; //use 19-bit only
+reg     [20:0]  cyc2r_pdelta_multiplied; //use 19-bit only
 reg     [18:0]  cyc2r_phase_prev;
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    if(cyc1r_mul == 4'd0) cyc2r_phase_multiplied <= {5'b00000, cyc1r_phase_shifted[16:1]};
+    if(cyc1r_mul == 4'd0) cyc2r_pdelta_multiplied <= {5'b00000, cyc1r_pdelta_shifted[16:1]};
     else begin
-        cyc2r_phase_multiplied <= cyc1r_phase_shifted * cyc1r_mul;
+        cyc2r_pdelta_multiplied <= cyc1r_pdelta_shifted * cyc1r_mul;
     end
 
     cyc2r_phase_prev <= cyc1r_phase_prev;
@@ -158,7 +158,7 @@ end
 ////
 
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    cyc3r_phase_current <= cyc2r_phase_multiplied[18:0] + cyc2r_phase_prev;
+    cyc3r_phase_current <= cyc2r_pdelta_multiplied[18:0] + cyc2r_phase_prev;
 end
 
 end
@@ -181,19 +181,19 @@ always @(*) begin
 end
 
 //modulate phase by adding the modulation value
-wire    [10:0]  cyc1c_phase_modded_val = {cyc0r_fnum, 1'b0} + {{7{cyc1c_pmamt_sign}}, cyc1c_pmamt_val} + cyc1c_pmamt_sign;
-wire            cyc1c_phase_modded_sign = cyc1c_phase_modded_val[10] & ~cyc1c_pmamt_sign;
-wire    [10:0]  cyc1c_phase_modded = {cyc1c_phase_modded_sign, cyc1c_phase_modded_val[9:0]}; 
+wire    [10:0]  cyc1c_pdelta_modded_val = {cyc0r_fnum, 1'b0} + {{7{cyc1c_pmamt_sign}}, cyc1c_pmamt_val} + cyc1c_pmamt_sign;
+wire            cyc1c_pdelta_modded_sign = cyc1c_pdelta_modded_val[10] & ~cyc1c_pmamt_sign;
+wire    [10:0]  cyc1c_pdelta_modded = {cyc1c_pdelta_modded_sign, cyc1c_pdelta_modded_val[9:0]}; 
 
 //do block shift(octave)
 reg     [13:0]  cyc1c_blockshifter0;
 reg     [16:0]  cyc1c_blockshifter1;
 always @(*) begin
     case(cyc0r_block[1:0])
-        2'b00: cyc1c_blockshifter0 = {3'b000, cyc1c_phase_modded};
-        2'b01: cyc1c_blockshifter0 = {2'b00, cyc1c_phase_modded, 1'b0};
-        2'b10: cyc1c_blockshifter0 = {1'b0, cyc1c_phase_modded, 2'b00};
-        2'b11: cyc1c_blockshifter0 = {cyc1c_phase_modded, 3'b000};
+        2'b00: cyc1c_blockshifter0 = {3'b000, cyc1c_pdelta_modded};
+        2'b01: cyc1c_blockshifter0 = {2'b00, cyc1c_pdelta_modded, 1'b0};
+        2'b10: cyc1c_blockshifter0 = {1'b0, cyc1c_pdelta_modded, 2'b00};
+        2'b11: cyc1c_blockshifter0 = {cyc1c_pdelta_modded, 3'b000};
     endcase
 
     case(cyc0r_block[2])
@@ -203,25 +203,25 @@ always @(*) begin
 end
 
 //apply MUL
-reg     [20:0]  cyc1c_phase_multiplied;
+reg     [20:0]  cyc1c_pdelta_multiplied;
 always @(*) begin
     case(cyc0r_mul)
-        4'h0: cyc1c_phase_multiplied = {5'b00000, cyc1c_blockshifter1[16:1]};
-        4'h1: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd1;
-        4'h2: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd2;
-        4'h3: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd3;
-        4'h4: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd4;
-        4'h5: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd5;
-        4'h6: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd6;
-        4'h7: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd7;
-        4'h8: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd8;
-        4'h9: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd9;
-        4'hA: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd10;
-        4'hB: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd10;
-        4'hC: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd12;
-        4'hD: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd12;
-        4'hE: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd15;
-        4'hF: cyc1c_phase_multiplied = cyc1c_blockshifter1 * 4'd15;
+        4'h0: cyc1c_pdelta_multiplied = {5'b00000, cyc1c_blockshifter1[16:1]};
+        4'h1: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd1;
+        4'h2: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd2;
+        4'h3: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd3;
+        4'h4: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd4;
+        4'h5: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd5;
+        4'h6: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd6;
+        4'h7: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd7;
+        4'h8: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd8;
+        4'h9: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd9;
+        4'hA: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd10;
+        4'hB: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd10;
+        4'hC: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd12;
+        4'hD: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd12;
+        4'hE: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd15;
+        4'hF: cyc1c_pdelta_multiplied = cyc1c_blockshifter1 * 4'd15;
     endcase
 end
 
@@ -229,10 +229,10 @@ end
 wire    [18:0]  cyc1c_phase_prev;
 
 //register part
-reg     [18:0]  cyc1r_phase_multiplied;
+reg     [18:0]  cyc1r_pdelta_multiplied;
 reg     [18:0]  cyc1r_phase_prev;
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    cyc1r_phase_multiplied <= cyc1c_phase_multiplied[18:0];
+    cyc1r_pdelta_multiplied <= cyc1c_pdelta_multiplied[18:0];
     cyc1r_phase_prev <= ~(~i_PG_PHASE_RST | i_TEST[2]) ? cyc18r_phase_sr_out : 19'd0;
 end
 
@@ -244,7 +244,7 @@ end
 
 reg     [18:0]  cyc2r_phase_current;
 always @(posedge emuclk) if(!phi1ncen_n) begin
-    cyc2r_phase_current <= cyc1r_phase_multiplied + cyc1r_phase_prev;
+    cyc2r_phase_current <= cyc1r_pdelta_multiplied + cyc1r_phase_prev;
 end
 
 
