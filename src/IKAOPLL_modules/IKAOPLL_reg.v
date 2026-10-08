@@ -245,6 +245,7 @@ wire            reg30_38_en = ((d9reg_addr[5:4] == 2'b11) & d9reg_addr_match) | 
 
 //D9REG
 wire            kon_reg;
+wire            susen_reg;
 wire    [3:0]   vol_reg, inst_reg;
 
 IKAOPLL_d9reg #(8) u_fnum_lsbs (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
@@ -260,7 +261,7 @@ IKAOPLL_d9reg #(1) u_kon       (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n),
                                 .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[4] : 1'b0), .o_Q(kon_reg));
 
 IKAOPLL_d9reg #(1) u_susen     (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
-                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[5] : 1'b0), .o_Q(o_SUSEN));
+                                .i_EN(reg20_28_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[5] : 1'b0), .o_Q(susen_reg));
 
 IKAOPLL_d9reg #(4) u_vol       (.i_EMUCLK(emuclk), .i_phi1_NCEN_n(phi1ncen_n), 
                                 .i_EN(reg30_38_en), .i_TAPSEL({i_CYCLE_D4_ZZ, i_CYCLE_D3_ZZ}), .i_D(i_RST_n ? d9reg_data[3:0] : 4'd0), .o_Q(vol_reg));
@@ -396,6 +397,8 @@ reg     [3:0]   ar_muxed, dr_muxed, rr_muxed;
 assign  o_AR = force_egparam_zero ? 4'd0 : ar_muxed;
 assign  o_DR = force_egparam_zero ? 4'd0 : dr_muxed;
 assign  o_RR = force_egparam_zero ? 4'd0 : rr_muxed;
+//the SUS release rate (5) is masked together with AR/DR/RR (docs/YM2413_schematics.pdf p.2)
+assign  o_SUSEN = susen_reg & ~force_egparam_zero;
 
 //output selector
 always @(*) begin
