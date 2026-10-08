@@ -220,7 +220,7 @@ always @(posedge emuclk) if(!phi1ncen_n) begin
     cyc1r_attenrate <= conseczerobitcntr;
     cyc1r_envdeltaweight_intensity <= (cyc0r_ksr_factor[1]      & ~envcntr[0]) |
 							          (cyc0r_ksr_factor[0]      &  envcntr == 2'd0) |
-							          (cyc0r_ksr_factor == 2'd3 &  envcntr == 2'd1);
+							          (cyc0r_ksr_factor[1:0] == 2'd3 &  envcntr == 2'd1);
     cyc1r_ksr_factor_lo <= cyc0r_ksr_factor[1:0];
     cyc1r_egparam_zero <= cyc0r_egparam_muxed == 4'd0;
 end
